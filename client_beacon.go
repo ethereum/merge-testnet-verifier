@@ -183,7 +183,7 @@ func (cl *BeaconClient) GetAttestationCountForSlot(slotNumber uint64) (uint64, e
 	}
 }
 
-func (cl *BeaconClient) GetDataPoint(dataName DataName, slotNumber uint64) (interface{}, error) {
+func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (interface{}, error) {
 	for {
 		// We fetch information only for previous slots, not current ongoing slot
 		ongoingSlot, _ := cl.GetOngoingSlotNumber()
@@ -336,9 +336,9 @@ func (cl *BeaconClient) sendRequest(requestType string, requestEndPoint string, 
 	return nil
 }
 
-type CLClients []*BeaconClient
+type BeaconClients []*BeaconClient
 
-func (cls *CLClients) BaseURLs() *[]string {
+func (cls *BeaconClients) BaseURLs() *[]string {
 	baseURLs := make([]string, 0)
 	for _, el := range *cls {
 		baseURLs = append(baseURLs, el.BaseURL)
@@ -346,11 +346,11 @@ func (cls *CLClients) BaseURLs() *[]string {
 	return &baseURLs
 }
 
-func (cls *CLClients) String() string {
+func (cls *BeaconClients) String() string {
 	return strings.Join(*cls.BaseURLs(), ",")
 }
 
-func (cls *CLClients) Set(baseUrl string) error {
+func (cls *BeaconClients) Set(baseUrl string) error {
 	client := &http.Client{}
 
 	if baseUrl[len(baseUrl)-1:] == "/" {

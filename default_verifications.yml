@@ -1,0 +1,91 @@
+- VerificationName:  Post-Merge Execution Blocks Produced
+  ClientType:        Execution
+  PostMerge:         true
+  CheckDelaySeconds: 1
+  MetricName:        BlockCount
+  AggregateFunction: Count
+  PassCriteria:      MinimumValue
+  PassValue:         1
+
+- VerificationName:  Post-Merge Execution Blocks Average GasUsed
+  ClientType:        Execution
+  PostMerge:         true
+  CheckDelaySeconds: 1
+  MetricName:        BlockGasUsed
+  AggregateFunction: Average
+  PassCriteria:      MinimumValue
+  PassValue:         1
+
+- VerificationName:  Post-Merge Execution Blocks Average BaseFee
+  ClientType:        Execution
+  PostMerge:         true
+  CheckDelaySeconds: 1
+  MetricName:        BlockBaseFee
+  AggregateFunction: Average
+  PassCriteria:      MinimumValue
+  PassValue:         1
+
+- VerificationName:  Post-Merge Execution Blocks Total Difficulty
+  ClientType:        Execution
+  PostMerge:         true
+  CheckDelaySeconds: 1
+  MetricName:        BlockDifficulty
+  AggregateFunction: Sum
+  PassCriteria:      MaximumValue
+  PassValue:         0
+
+- VerificationName:       Post-Merge Execution Blocks Invalid Uncle Hash
+  ClientType:             Execution
+  PostMerge:              true
+  CheckDelaySeconds:      1
+  MetricName:             BlockUnclesHash
+  AggregateFunction:      CountUnequal
+  AggregateFunctionValue: 0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347
+  PassCriteria:           MaximumValue
+  PassValue:              0
+
+- VerificationName:       Post-Merge Execution Blocks Invalid Nonce
+  ClientType:             Execution
+  PostMerge:              true
+  CheckDelaySeconds:      1
+  MetricName:             BlockNonce
+  AggregateFunction:      CountUnequal
+  AggregateFunctionValue: 0
+  PassCriteria:           MaximumValue
+  PassValue:              0
+
+- VerificationName:  Post-Merge Beacon Blocks Produced
+  ClientType:        Beacon
+  PostMerge:         true
+  CheckDelaySeconds: 12
+  MetricName:        SlotBlock
+  AggregateFunction: Count
+  PassCriteria:      MinimumValue
+  PassValue:         1
+
+- VerificationName:  Post-Merge Justified Epochs
+  ClientType:        Beacon
+  PostMerge:         true
+  CheckDelaySeconds: 12
+  MetricName:        FinalizedEpoch
+  AggregateFunction: Count
+  PassCriteria:      MinimumValue
+  PassValue:         1
+
+- VerificationName:  Post-Merge Finalized Epochs
+  ClientType:        Beacon
+  PostMerge:         true
+  CheckDelaySeconds: 12
+  MetricName:        FinalizedEpoch
+  AggregateFunction: Count
+  PassCriteria:      MinimumValue
+  PassValue:         2
+
+- VerificationName:  Post-Merge Attestations Per Slot
+  ClientType:        Beacon
+  PostMerge:         true
+  CheckDelaySeconds: 1
+  MetricName:        SlotAttestationsPercentage
+  AggregateFunction: Average
+  PassCriteria:      MinimumValue
+  PassValue:         95

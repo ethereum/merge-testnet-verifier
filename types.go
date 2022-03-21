@@ -2,11 +2,60 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math/big"
+	"os"
 	"strconv"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"gopkg.in/yaml.v2"
 )
+
+type Verification struct {
+	VerificationName       string            `yaml:"VerificationName"`
+	ClientType             ClientType        `yaml:"ClientType"`
+	PostMerge              bool              `yaml:"PostMerge"`
+	CheckDelaySeconds      int               `yaml:"CheckDelaySeconds"`
+	MetricName             MetricName        `yaml:"MetricName"`
+	AggregateFunction      AggregateFunction `yaml:"AggregateFunction"`
+	AggregateFunctionValue InputValue        `yaml:"AggregateFunctionValue"`
+	PassCriteria           PassCriteria      `yaml:"PassCriteria"`
+	PassValue              InputValue        `yaml:"PassValue"`
+}
+
+type VerificationProbe struct {
+	Verification               *Verification
+	Client                     *Client
+	PreviousDataPointSlotBlock uint64
+	DataPointsPerSlotBlock     DataPoints
+}
+
+type Verifications []Verification
+
+func (vs *Verifications) Set(filePath string) error {
+	yamlFile, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+
+	bVal, _ := ioutil.ReadAll(yamlFile)
+	var newVerifications Verifications
+	if err := yaml.Unmarshal(bVal, &newVerifications); err != nil {
+		return err
+	}
+
+	*vs = append(*vs, newVerifications...)
+	return nil
+}
+
+func (vs *Verifications) String() string {
+	names := make([]string, 0)
+	for _, v := range *vs {
+		names = append(names, v.VerificationName)
+	}
+	return strings.Join(names, ",")
+}
 
 type ClientType uint64
 
@@ -15,7 +64,7 @@ const (
 	Beacon
 )
 
-func (l *ClientType) UnmarshalJSON(input []byte) error {
+func (l *ClientType) UnmarshalText(input []byte) error {
 	s := string(input)
 	if s == "Execution" {
 		*l = Execution
@@ -27,11 +76,11 @@ func (l *ClientType) UnmarshalJSON(input []byte) error {
 	return fmt.Errorf("Invalid layer type: %s", s)
 }
 
-type DataName uint64
+type MetricName uint64
 
 const (
 	// Execution Types
-	BlockCount DataName = iota
+	BlockCount MetricName = iota
 	BlockBaseFee
 	BlockGasUsed
 	BlockDifficulty
@@ -46,7 +95,7 @@ const (
 	SlotAttestationsPercentage
 )
 
-var DataNames = map[string]DataName{
+var MetricNames = map[string]MetricName{
 	// Execution Types
 	"BlockCount":      BlockCount,
 	"BlockBaseFee":    BlockBaseFee,
@@ -63,9 +112,9 @@ var DataNames = map[string]DataName{
 	"SlotAttestationsPercentage": SlotAttestationsPercentage,
 }
 
-func (dn *DataName) UnmarshalJSON(input []byte) error {
+func (dn *MetricName) UnmarshalText(input []byte) error {
 	s := string(input)
-	v, ok := DataNames[s]
+	v, ok := MetricNames[s]
 	if !ok {
 		return fmt.Errorf("Invalid data type: %s", s)
 	}
@@ -73,8 +122,8 @@ func (dn *DataName) UnmarshalJSON(input []byte) error {
 	return nil
 }
 
-func (dn DataName) String() string {
-	for k, v := range DataNames {
+func (dn MetricName) String() string {
+	for k, v := range MetricNames {
 		if dn == v {
 			return k
 		}
@@ -89,7 +138,7 @@ const (
 	BigInt
 )
 
-var DataTypesPerLayer = map[ClientType]map[DataName]DataType{
+var DataTypesPerLayer = map[ClientType]map[MetricName]DataType{
 	Execution: {
 		BlockCount:      Uint64,
 		BlockBaseFee:    BigInt,
@@ -132,7 +181,7 @@ var AggregateFunctions = map[string]AggregateFunction{
 	"Max":          Max,
 }
 
-func (af *AggregateFunction) UnmarshalJSON(input []byte) error {
+func (af *AggregateFunction) UnmarshalText(input []byte) error {
 	s := string(input)
 	v, ok := AggregateFunctions[s]
 	if !ok {
@@ -163,7 +212,7 @@ var PassCriterias = map[string]PassCriteria{
 	"MaximumValue": MaximumValue,
 }
 
-func (pc *PassCriteria) UnmarshalJSON(input []byte) error {
+func (pc *PassCriteria) UnmarshalText(input []byte) error {
 	s := string(input)
 	v, ok := PassCriterias[s]
 	if !ok {

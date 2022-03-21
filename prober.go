@@ -24,11 +24,11 @@ func (t *TTD) Set(val string) error {
 }
 
 type Prober struct {
-	ELClients ELClients
-	CLClients CLClients
-	Probes    VerificationProbes
-	WaitGroup sync.WaitGroup
-	StopChan  chan struct{}
+	ExecutionClients ExecutionClients
+	BeaconClients    BeaconClients
+	Probes           VerificationProbes
+	WaitGroup        sync.WaitGroup
+	StopChan         chan struct{}
 }
 
 func (p *Prober) StartProbes() {
@@ -57,39 +57,42 @@ func (p *Prober) WrapUp() {
 
 func main() {
 	var (
-		elClients ELClients
-		clClients CLClients
-		ttd       TTD
+		ExecutionClients ExecutionClients
+		BeaconClients    BeaconClients
+		ttd              TTD
+		verifications    Verifications
 	)
-	flag.Var(&elClients, "exec-client",
+	flag.Var(&ExecutionClients, "exec-client",
 		"Execution client RPC endpoint to check for the client's status")
-	flag.Var(&clClients, "beacon-client",
+	flag.Var(&BeaconClients, "beacon-client",
 		"Consensus client REST API endpoint to check for the client's status")
 	flag.Var(&ttd, "ttd",
+		"Value of the Terminal Total Difficulty for the subscribed clients")
+	flag.Var(&verifications, "verifications",
 		"Value of the Terminal Total Difficulty for the subscribed clients")
 	flag.Parse()
 
 	prober := Prober{
-		ELClients: elClients,
-		CLClients: clClients,
-		Probes:    make([]VerificationProbe, 0),
+		ExecutionClients: ExecutionClients,
+		BeaconClients:    BeaconClients,
+		Probes:           make([]VerificationProbe, 0),
 	}
 
 	updateAllTTDTimestamps := func(timestamp uint64) {
-		for _, cl := range clClients {
+		for _, cl := range BeaconClients {
 			cl.UpdateTTDTimestamp(timestamp)
 		}
 	}
 
-	for _, el := range elClients {
+	for _, el := range ExecutionClients {
 		el.TTD = ttd
 		el.UpdateTTDTimestamp = updateAllTTDTimestamps
-		prober.Probes = append(prober.Probes, NewVerificationProbes(el, AllVerifications)...)
+		prober.Probes = append(prober.Probes, NewVerificationProbes(el, verifications)...)
 	}
 
-	for _, cl := range clClients {
+	for _, cl := range BeaconClients {
 		cl.TTD = ttd
-		prober.Probes = append(prober.Probes, NewVerificationProbes(cl, AllVerifications)...)
+		prober.Probes = append(prober.Probes, NewVerificationProbes(cl, verifications)...)
 	}
 
 	if prober.Probes.ExecutionVerifications() == 0 {

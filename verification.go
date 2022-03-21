@@ -18,132 +18,7 @@ func (vOut *VerificationOutcome) String(verificationName string) string {
 	return fmt.Sprintf("FAIL (%s): %s", verificationName, vOut.Message)
 }
 
-type Verification struct {
-	VerificationName       string            `json:"verificationName"`
-	ClientType             ClientType        `json:"clientType"`
-	PostMerge              bool              `json:"postMerge"`
-	CheckDelaySeconds      int               `json:"checkDelaySeconds"`
-	DataName               DataName          `json:"dataName"`
-	AggregateFunction      AggregateFunction `json:"aggregateFunction"`
-	AggregateFunctionValue InputValue        `json:"aggregateFunctionValue"`
-	PassCriteria           PassCriteria      `json:"passCriteria"`
-	PassValue              InputValue        `json:"passValue"`
-}
-
-type VerificationProbe struct {
-	Verification               *Verification
-	Client                     *Client
-	PreviousDataPointSlotBlock uint64
-	DataPointsPerSlotBlock     DataPoints
-}
-
 type VerificationProbes []VerificationProbe
-
-var AllVerifications = []Verification{
-	{
-		VerificationName:  "Post-Merge Execution Blocks Produced",
-		ClientType:        Execution,
-		PostMerge:         true,
-		CheckDelaySeconds: 1,
-		DataName:          BlockCount,
-		AggregateFunction: Count,
-		PassCriteria:      MinimumValue,
-		PassValue:         "1",
-	},
-
-	{
-		VerificationName:  "Post-Merge Execution Blocks Average GasUsed",
-		ClientType:        Execution,
-		PostMerge:         true,
-		CheckDelaySeconds: 1,
-		DataName:          BlockGasUsed,
-		AggregateFunction: Average,
-		PassCriteria:      MinimumValue,
-		PassValue:         "1",
-	},
-	{
-		VerificationName:  "Post-Merge Execution Blocks Average BaseFee",
-		ClientType:        Execution,
-		PostMerge:         true,
-		CheckDelaySeconds: 1,
-		DataName:          BlockBaseFee,
-		AggregateFunction: Average,
-		PassCriteria:      MinimumValue,
-		PassValue:         "1",
-	},
-	{
-		VerificationName:  "Post-Merge Execution Blocks Total Difficulty",
-		ClientType:        Execution,
-		PostMerge:         true,
-		CheckDelaySeconds: 1,
-		DataName:          BlockDifficulty,
-		AggregateFunction: Sum,
-		PassCriteria:      MaximumValue,
-		PassValue:         "0",
-	},
-	{
-		VerificationName:       "Post-Merge Execution Blocks Invalid Uncle Hash",
-		ClientType:             Execution,
-		PostMerge:              true,
-		CheckDelaySeconds:      1,
-		DataName:               BlockUnclesHash,
-		AggregateFunction:      CountUnequal,
-		AggregateFunctionValue: "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
-		PassCriteria:           MaximumValue,
-		PassValue:              "0",
-	},
-	{
-		VerificationName:       "Post-Merge Execution Blocks Invalid Nonce",
-		ClientType:             Execution,
-		PostMerge:              true,
-		CheckDelaySeconds:      1,
-		DataName:               BlockNonce,
-		AggregateFunction:      CountUnequal,
-		AggregateFunctionValue: "0",
-		PassCriteria:           MaximumValue,
-		PassValue:              "0",
-	},
-	{
-		VerificationName:  "Post-Merge Beacon Blocks Produced",
-		ClientType:        Beacon,
-		PostMerge:         true,
-		CheckDelaySeconds: 12,
-		DataName:          SlotBlock,
-		AggregateFunction: Count,
-		PassCriteria:      MinimumValue,
-		PassValue:         "1",
-	},
-	{
-		VerificationName:  "Post-Merge Justified Epochs",
-		ClientType:        Beacon,
-		PostMerge:         true,
-		CheckDelaySeconds: 12,
-		DataName:          FinalizedEpoch,
-		AggregateFunction: Count,
-		PassCriteria:      MinimumValue,
-		PassValue:         "1",
-	},
-	{
-		VerificationName:  "Post-Merge Finalized Epochs",
-		ClientType:        Beacon,
-		PostMerge:         true,
-		CheckDelaySeconds: 12,
-		DataName:          FinalizedEpoch,
-		AggregateFunction: Count,
-		PassCriteria:      MinimumValue,
-		PassValue:         "2",
-	},
-	{
-		VerificationName:  "Post-Merge Attestations Per Slot",
-		ClientType:        Beacon,
-		PostMerge:         true,
-		CheckDelaySeconds: 1,
-		DataName:          SlotAttestationsPercentage,
-		AggregateFunction: Average,
-		PassCriteria:      MinimumValue,
-		PassValue:         "95",
-	},
-}
 
 func NewVerificationProbes(client Client, verifications []Verification) []VerificationProbe {
 	clientType := client.ClientType()
@@ -194,7 +69,7 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 		if latestBlockSlot > v.PreviousDataPointSlotBlock {
 			currentBlockSlot := v.PreviousDataPointSlotBlock + 1
 			for ; currentBlockSlot <= latestBlockSlot; currentBlockSlot++ {
-				newDataPoint, err := (*v.Client).GetDataPoint(v.Verification.DataName, currentBlockSlot)
+				newDataPoint, err := (*v.Client).GetDataPoint(v.Verification.MetricName, currentBlockSlot)
 				if err != nil {
 					break
 				}
@@ -208,7 +83,7 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 
 func (v *VerificationProbe) Verify() (VerificationOutcome, error) {
 	if dataLayer, ok := DataTypesPerLayer[v.Verification.ClientType]; ok {
-		if dataType, ok := dataLayer[v.Verification.DataName]; ok {
+		if dataType, ok := dataLayer[v.Verification.MetricName]; ok {
 			switch dataType {
 			case Uint64:
 				return v.VerifyUint64()
@@ -217,7 +92,7 @@ func (v *VerificationProbe) Verify() (VerificationOutcome, error) {
 			}
 		}
 	}
-	return VerificationOutcome{}, fmt.Errorf("Unknown data: %s", v.Verification.DataName)
+	return VerificationOutcome{}, fmt.Errorf("Unknown data: %s", v.Verification.MetricName)
 }
 
 func (v *VerificationProbe) VerifyBigInt() (VerificationOutcome, error) {

@@ -2,14 +2,15 @@ module merge_testnet_prober
 
 go 1.17
 
-require github.com/ethereum/go-ethereum v1.10.16
+require (
+	github.com/ethereum/go-ethereum v1.10.16
+	gopkg.in/yaml.v2 v2.4.0
+)
 
 require (
 	github.com/StackExchange/wmi v0.0.0-20180116203802-5d049714c4a6 // indirect
 	github.com/btcsuite/btcd v0.20.1-beta // indirect
 	github.com/deckarep/golang-set v1.8.0 // indirect
-	github.com/fjl/gencodec v0.0.0-20191126094850-e283372f291f // indirect
-	github.com/garslo/gogen v0.0.0-20170306192744-1d203ffc1f61 // indirect
 	github.com/go-ole/go-ole v1.2.1 // indirect
 	github.com/go-stack/stack v1.8.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
@@ -17,9 +18,6 @@ require (
 	github.com/tklauser/go-sysconf v0.3.5 // indirect
 	github.com/tklauser/numcpus v0.2.2 // indirect
 	golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2 // indirect
-	golang.org/x/mod v0.4.2 // indirect
 	golang.org/x/sys v0.0.0-20210816183151-1e6c022a8912 // indirect
-	golang.org/x/tools v0.1.0 // indirect
-	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce // indirect
 )

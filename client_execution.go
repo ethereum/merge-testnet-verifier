@@ -89,7 +89,7 @@ func (el *ExecutionClient) GetLatestBlockSlotNumber() (uint64, error) {
 	return el.Eth.BlockNumber(el.Ctx())
 }
 
-func (el *ExecutionClient) GetDataPoint(dataName DataName, blockNumber uint64) (interface{}, error) {
+func (el *ExecutionClient) GetDataPoint(dataName MetricName, blockNumber uint64) (interface{}, error) {
 	switch dataName {
 	case BlockCount:
 		el.l.Lock()
@@ -160,9 +160,9 @@ func (el *ExecutionClient) Ctx() context.Context {
 	return el.lastCtx
 }
 
-type ELClients []*ExecutionClient
+type ExecutionClients []*ExecutionClient
 
-func (els *ELClients) Set(rpcUrl string) error {
+func (els *ExecutionClients) Set(rpcUrl string) error {
 	client := &http.Client{}
 	rpcClient, err := rpc.DialHTTPWithClient(rpcUrl, client)
 	if err != nil {
@@ -179,7 +179,7 @@ func (els *ELClients) Set(rpcUrl string) error {
 	return nil
 }
 
-func (els *ELClients) RPCUrls() *[]string {
+func (els *ExecutionClients) RPCUrls() *[]string {
 	rpcurls := make([]string, 0)
 	for _, el := range *els {
 		rpcurls = append(rpcurls, el.RPCUrl)
@@ -187,6 +187,6 @@ func (els *ELClients) RPCUrls() *[]string {
 	return &rpcurls
 }
 
-func (els *ELClients) String() string {
+func (els *ExecutionClients) String() string {
 	return strings.Join(*els.RPCUrls(), ",")
 }
