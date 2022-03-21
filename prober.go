@@ -10,11 +10,6 @@ import (
 	"syscall"
 )
 
-type VerificationValue struct {
-	Name         string
-	MinimumValue int
-}
-
 type TTD struct {
 	*big.Int
 }

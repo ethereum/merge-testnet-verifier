@@ -37,8 +37,8 @@ type TotalDifficulty struct {
 	TotalDifficulty *hexutil.Big `json:"totalDifficulty"`
 }
 
-func (el *ExecutionClient) ClientType() string {
-	return "Execution"
+func (el *ExecutionClient) ClientType() ClientType {
+	return Execution
 }
 
 func (el *ExecutionClient) UpdateGetTTDBlockSlot() (*uint64, error) {
@@ -89,9 +89,9 @@ func (el *ExecutionClient) GetLatestBlockSlotNumber() (uint64, error) {
 	return el.Eth.BlockNumber(el.Ctx())
 }
 
-func (el *ExecutionClient) GetDataPoint(dataName string, blockNumber uint64) (interface{}, error) {
+func (el *ExecutionClient) GetDataPoint(dataName DataName, blockNumber uint64) (interface{}, error) {
 	switch dataName {
-	case "BlockCount":
+	case BlockCount:
 		el.l.Lock()
 		defer el.l.Unlock()
 		_, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
@@ -99,7 +99,7 @@ func (el *ExecutionClient) GetDataPoint(dataName string, blockNumber uint64) (in
 			return nil, err
 		}
 		return uint64(1), nil
-	case "BlockBaseFee":
+	case BlockBaseFee:
 		el.l.Lock()
 		defer el.l.Unlock()
 		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
@@ -107,7 +107,7 @@ func (el *ExecutionClient) GetDataPoint(dataName string, blockNumber uint64) (in
 			return nil, err
 		}
 		return header.BaseFee, nil
-	case "BlockGasUsed":
+	case BlockGasUsed:
 		el.l.Lock()
 		defer el.l.Unlock()
 		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
@@ -115,7 +115,7 @@ func (el *ExecutionClient) GetDataPoint(dataName string, blockNumber uint64) (in
 			return nil, err
 		}
 		return header.GasUsed, nil
-	case "BlockDifficulty":
+	case BlockDifficulty:
 		el.l.Lock()
 		defer el.l.Unlock()
 		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
@@ -123,6 +123,30 @@ func (el *ExecutionClient) GetDataPoint(dataName string, blockNumber uint64) (in
 			return nil, err
 		}
 		return header.Difficulty, nil
+	case BlockMixHash:
+		el.l.Lock()
+		defer el.l.Unlock()
+		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
+		if err != nil {
+			return nil, err
+		}
+		return header.MixDigest.Big(), nil
+	case BlockUnclesHash:
+		el.l.Lock()
+		defer el.l.Unlock()
+		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
+		if err != nil {
+			return nil, err
+		}
+		return header.UncleHash.Big(), nil
+	case BlockNonce:
+		el.l.Lock()
+		defer el.l.Unlock()
+		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
+		if err != nil {
+			return nil, err
+		}
+		return header.Nonce.Uint64(), nil
 	}
 
 	return nil, fmt.Errorf("Invalid data name: %s", dataName)

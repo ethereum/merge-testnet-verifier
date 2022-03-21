@@ -2,7 +2,7 @@ package main
 
 type Client interface {
 	// Get a specific data for a specific slot/block number
-	GetDataPoint(dataName string, blockSlotNumber uint64) (interface{}, error)
+	GetDataPoint(dataName DataName, blockSlotNumber uint64) (interface{}, error)
 
 	// Get the latest block/slot number for this client
 	GetLatestBlockSlotNumber() (uint64, error)
@@ -13,5 +13,5 @@ type Client interface {
 	UpdateGetTTDBlockSlot() (*uint64, error)
 
 	// Get the client type: Execution or Beacon
-	ClientType() string
+	ClientType() ClientType
 }

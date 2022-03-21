@@ -31,20 +31,40 @@ func (dp DataPoints) ToUint64() (map[uint64]uint64, error) {
 	return dataPoints, nil
 }
 
-func (dp DataPoints) AggregateUint64(aggregateFunc string) (uint64, error) {
+func (dp DataPoints) AggregateUint64(af AggregateFunction, aggregateFuncValue InputValue) (uint64, error) {
 	dataPoints, err := dp.ToUint64()
 	if err != nil {
 		return 0, err
 	}
 	aggregatedValue := uint64(0)
-	switch aggregateFunc {
-	case "count":
+	switch af {
+	case Count:
 		for _, v := range dataPoints {
 			if v > 0 {
 				aggregatedValue++
 			}
 		}
-	case "percentage":
+	case CountEqual:
+		aggregateFuncValue, err := aggregateFuncValue.ToUint64()
+		if err != nil {
+			return 0, err
+		}
+		for _, v := range dataPoints {
+			if v == aggregateFuncValue {
+				aggregatedValue++
+			}
+		}
+	case CountUnequal:
+		aggregateFuncValue, err := aggregateFuncValue.ToUint64()
+		if err != nil {
+			return 0, err
+		}
+		for _, v := range dataPoints {
+			if v != aggregateFuncValue {
+				aggregatedValue++
+			}
+		}
+	case Percentage:
 		total := uint64(0)
 		for _, v := range dataPoints {
 			total++
@@ -53,7 +73,7 @@ func (dp DataPoints) AggregateUint64(aggregateFunc string) (uint64, error) {
 			}
 		}
 		aggregatedValue = (aggregatedValue * 100) / total
-	case "average":
+	case Average:
 		count := uint64(0)
 		for _, v := range dataPoints {
 			aggregatedValue += v
@@ -62,17 +82,17 @@ func (dp DataPoints) AggregateUint64(aggregateFunc string) (uint64, error) {
 		if count > 0 {
 			aggregatedValue = aggregatedValue / count
 		}
-	case "sum":
+	case Sum:
 		for _, v := range dataPoints {
 			aggregatedValue += v
 		}
-	case "maximum":
+	case Max:
 		for _, v := range dataPoints {
 			if v > aggregatedValue {
 				aggregatedValue = v
 			}
 		}
-	case "minimum":
+	case Min:
 		aggregatedValue = uint64(0)
 		firstVal := true
 		for _, v := range dataPoints {
@@ -82,26 +102,45 @@ func (dp DataPoints) AggregateUint64(aggregateFunc string) (uint64, error) {
 			}
 		}
 	default:
-		return aggregatedValue, fmt.Errorf("Invalid aggregate function for uint64: %s", aggregateFunc)
+		return aggregatedValue, fmt.Errorf("Invalid aggregate function for uint64: %s", af)
 	}
 	return aggregatedValue, nil
 }
 
-func (dp DataPoints) AggregateBigInt(aggregateFunc string) (*big.Int, error) {
+func (dp DataPoints) AggregateBigInt(af AggregateFunction, aggregateFuncValue InputValue) (*big.Int, error) {
 	dataPoints, err := dp.ToInt()
 	if err != nil {
 		return nil, err
 	}
 	aggregatedValue := big.NewInt(0)
-
-	switch aggregateFunc {
-	case "count":
+	switch af {
+	case Count:
 		for _, v := range dataPoints {
 			if v.Cmp(big.NewInt(0)) > 0 {
 				aggregatedValue = aggregatedValue.Add(aggregatedValue, big.NewInt(1))
 			}
 		}
-	case "average":
+	case CountEqual:
+		aggregateFuncValue, err := aggregateFuncValue.ToBigInt()
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range dataPoints {
+			if v.Cmp(aggregateFuncValue) == 0 {
+				aggregatedValue = aggregatedValue.Add(aggregatedValue, big.NewInt(1))
+			}
+		}
+	case CountUnequal:
+		aggregateFuncValue, err := aggregateFuncValue.ToBigInt()
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range dataPoints {
+			if v.Cmp(aggregateFuncValue) != 0 {
+				aggregatedValue = aggregatedValue.Add(aggregatedValue, big.NewInt(1))
+			}
+		}
+	case Average:
 		count := int64(0)
 		for _, v := range dataPoints {
 			aggregatedValue = aggregatedValue.Add(aggregatedValue, v)
@@ -111,12 +150,30 @@ func (dp DataPoints) AggregateBigInt(aggregateFunc string) (*big.Int, error) {
 			fmt.Printf("Total=%v, Count=%v\n", aggregatedValue, count)
 			aggregatedValue = aggregatedValue.Div(aggregatedValue, big.NewInt(count))
 		}
-	case "sum":
+	case Sum:
 		for _, v := range dataPoints {
 			aggregatedValue = aggregatedValue.Add(aggregatedValue, v)
 		}
+	case Min:
+		firstVal := true
+		for _, v := range dataPoints {
+			v := v
+			if firstVal || aggregatedValue.Cmp(v) > 0 {
+				aggregatedValue = v
+				firstVal = false
+			}
+		}
+	case Max:
+		firstVal := true
+		for _, v := range dataPoints {
+			v := v
+			if firstVal || aggregatedValue.Cmp(v) < 0 {
+				aggregatedValue = v
+				firstVal = false
+			}
+		}
 	default:
-		return nil, fmt.Errorf("Invalid aggregate function for bigInt: %s", aggregateFunc)
+		return nil, fmt.Errorf("Invalid aggregate function for bigInt: %s", af)
 	}
 	return aggregatedValue, nil
 }

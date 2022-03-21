@@ -44,8 +44,8 @@ type BeaconClient struct {
 	lastCancel context.CancelFunc
 }
 
-func (cl *BeaconClient) ClientType() string {
-	return "Beacon"
+func (cl *BeaconClient) ClientType() ClientType {
+	return Beacon
 }
 
 func (cl *BeaconClient) UpdateTTDTimestamp(newTimestamp uint64) {
@@ -183,7 +183,7 @@ func (cl *BeaconClient) GetAttestationCountForSlot(slotNumber uint64) (uint64, e
 	}
 }
 
-func (cl *BeaconClient) GetDataPoint(dataName string, slotNumber uint64) (interface{}, error) {
+func (cl *BeaconClient) GetDataPoint(dataName DataName, slotNumber uint64) (interface{}, error) {
 	for {
 		// We fetch information only for previous slots, not current ongoing slot
 		ongoingSlot, _ := cl.GetOngoingSlotNumber()
@@ -194,13 +194,13 @@ func (cl *BeaconClient) GetDataPoint(dataName string, slotNumber uint64) (interf
 		}
 	}
 	switch dataName {
-	case "SlotBlock":
+	case SlotBlock:
 		_, err := cl.GetBeaconBlock(slotNumber)
 		if err == nil {
 			return uint64(1), nil
 		}
 		return uint64(0), nil
-	case "FinalizedEpoch":
+	case FinalizedEpoch:
 		// Return `1` for each Finalized root change
 		if slotNumber == 0 {
 			return uint64(0), nil
@@ -227,7 +227,7 @@ func (cl *BeaconClient) GetDataPoint(dataName string, slotNumber uint64) (interf
 		}
 		return uint64(0), nil
 
-	case "JustifiedEpoch":
+	case JustifiedEpoch:
 		// Return `1` for each Justified root change
 		if slotNumber == 0 {
 			return uint64(0), nil
@@ -254,13 +254,13 @@ func (cl *BeaconClient) GetDataPoint(dataName string, slotNumber uint64) (interf
 		}
 		return uint64(0), nil
 
-	case "SlotAttestations":
+	case SlotAttestations:
 		slotAttestations, err := cl.GetAttestationCountForSlot(slotNumber)
 		if err != nil {
 			return slotAttestations, err
 		}
 		return slotAttestations, nil
-	case "SlotAttestationsPercentage":
+	case SlotAttestationsPercentage:
 		committeeSize, err := cl.GetSlotCommitteeSize(slotNumber)
 		if err != nil {
 			return uint64(0), err
