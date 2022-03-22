@@ -36,8 +36,11 @@ type GenesisResponse struct {
 type AggregationBits []byte
 
 func (ab *AggregationBits) UnmarshalJSON(b []byte) error {
-	str := string(b)
-	str = str[1 : len(str)-1]
+	var str string
+	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return err
+	}
 	if str[0:2] != "0x" {
 		return fmt.Errorf("SyncCommitteeBits: Not an hex string")
 	}
@@ -60,8 +63,11 @@ func (ab AggregationBits) CountSetBits() uint64 {
 type SyncCommitteeSignature [96]byte
 
 func (scs *SyncCommitteeSignature) UnmarshalJSON(b []byte) error {
-	str := string(b)
-	str = str[1 : len(str)-1]
+	var str string
+	err := json.Unmarshal(b, &str)
+	if err != nil {
+		return err
+	}
 	if str[0:2] != "0x" {
 		return fmt.Errorf("SyncCommitteeSignature: Not an hex string")
 	}
