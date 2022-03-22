@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/bits"
 	"net/http"
 	"strings"
 	"sync"
@@ -101,8 +100,8 @@ func (cl *BeaconClient) UpdateGetTTDBlockSlot() (*uint64, error) {
 	return nil, nil
 }
 
-func (cl *BeaconClient) GetBeaconBlock(slotNumber uint64) (*BeaconBlockResponse, error) {
-	resp := BeaconBlockResponse{}
+func (cl *BeaconClient) GetBeaconHeader(slotNumber uint64) (*BeaconHeaderResponse, error) {
+	resp := BeaconHeaderResponse{}
 	err := cl.sendRequest(GET_REQUEST, fmt.Sprintf(V1_BEACON_HEADERS_ENDPOINT, slotNumber), &resp)
 	return &resp, err
 }
@@ -143,6 +142,23 @@ func (cl *BeaconClient) GetSlotCommitteeSize(slotNumber uint64) (uint64, error) 
 	return committeeCount, nil
 }
 
+func (cl *BeaconClient) GetSyncParticipationCountAtSlot(blockNumber uint64) (uint64, error) {
+	var block BeaconBlock
+	if err := cl.sendRequest(GET_REQUEST, fmt.Sprintf(V2_BEACON_BLOCKS_ENDPOINT, blockNumber), &block); err != nil {
+		return 0, err
+	}
+	return block.BlockMessage.Body.SyncAggregate.SyncCommitteeBits.CountSetBits(), nil
+}
+
+func (cl *BeaconClient) GetSyncParticipationPercentageAtSlot(blockNumber uint64) (uint64, error) {
+	syncParticipationCount, err := cl.GetSyncParticipationCountAtSlot(blockNumber)
+	if err != nil {
+		return 0, err
+	}
+
+	return (syncParticipationCount * 100) / cl.Spec.SyncCommitteeSize, nil
+}
+
 func (cl *BeaconClient) GetAttestationsAtBlock(blockNumber uint64) (*[]Attestation, error) {
 	var allAttestations []Attestation
 	if err := cl.sendRequest(GET_REQUEST, fmt.Sprintf(V1_BEACON_BLOCKS_ATTESTATIONS_ENDPOINT, blockNumber), &allAttestations); err != nil {
@@ -164,7 +180,7 @@ func (cl *BeaconClient) GetAttestationCountForSlot(slotNumber uint64) (uint64, e
 			for _, att := range *attBlock {
 				if att.Data.Slot == slotNumber {
 					// we got the attestations
-					attCount := uint64(bits.OnesCount64(att.AggregationBits))
+					attCount := att.AggregationBits.CountSetBits()
 					if attCount > 0 {
 						attCount -= 1
 					}
@@ -195,7 +211,7 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 	}
 	switch dataName {
 	case SlotBlock:
-		_, err := cl.GetBeaconBlock(slotNumber)
+		_, err := cl.GetBeaconHeader(slotNumber)
 		if err == nil {
 			return uint64(1), nil
 		}
@@ -274,6 +290,18 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 		}
 		perc := (slotAttestations * 100) / committeeSize
 		return perc, nil
+	case SyncParticipationCount:
+		participationCount, err := cl.GetSyncParticipationCountAtSlot(slotNumber)
+		if err != nil {
+			return uint64(0), err
+		}
+		return participationCount, err
+	case SyncParticipationPercentage:
+		participationPercentage, err := cl.GetSyncParticipationPercentageAtSlot(slotNumber)
+		if err != nil {
+			return uint64(0), err
+		}
+		return participationPercentage, err
 	}
 
 	return nil, fmt.Errorf("Invalid data name: %s", dataName)

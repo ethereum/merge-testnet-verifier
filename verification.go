@@ -67,6 +67,11 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 		}
 
 		if latestBlockSlot > v.PreviousDataPointSlotBlock {
+			printSyncStatus := false
+			if (latestBlockSlot - v.PreviousDataPointSlotBlock) > 10 {
+				fmt.Printf("INFO: Syncing data %s\n", v.Verification.MetricName)
+				printSyncStatus = true
+			}
 			currentBlockSlot := v.PreviousDataPointSlotBlock + 1
 			for ; currentBlockSlot <= latestBlockSlot; currentBlockSlot++ {
 				newDataPoint, err := (*v.Client).GetDataPoint(v.Verification.MetricName, currentBlockSlot)
@@ -75,6 +80,9 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 				}
 				v.DataPointsPerSlotBlock[currentBlockSlot] = newDataPoint
 				v.PreviousDataPointSlotBlock = currentBlockSlot
+			}
+			if printSyncStatus {
+				fmt.Printf("INFO: Finished syncing data %s\n", v.Verification.MetricName)
 			}
 		}
 	}

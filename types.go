@@ -93,6 +93,8 @@ const (
 	JustifiedEpoch
 	SlotAttestations
 	SlotAttestationsPercentage
+	SyncParticipationCount
+	SyncParticipationPercentage
 )
 
 var MetricNames = map[string]MetricName{
@@ -105,11 +107,13 @@ var MetricNames = map[string]MetricName{
 	"BlockUnclesHash": BlockUnclesHash,
 	"BlockNonce":      BlockNonce,
 	// Beacon Types
-	"SlotBlock":                  SlotBlock,
-	"FinalizedEpoch":             FinalizedEpoch,
-	"JustifiedEpoch":             JustifiedEpoch,
-	"SlotAttestations":           SlotAttestations,
-	"SlotAttestationsPercentage": SlotAttestationsPercentage,
+	"SlotBlock":                   SlotBlock,
+	"FinalizedEpoch":              FinalizedEpoch,
+	"JustifiedEpoch":              JustifiedEpoch,
+	"SlotAttestations":            SlotAttestations,
+	"SlotAttestationsPercentage":  SlotAttestationsPercentage,
+	"SyncParticipationCount":      SyncParticipationCount,
+	"SyncParticipationPercentage": SyncParticipationPercentage,
 }
 
 func (dn *MetricName) UnmarshalText(input []byte) error {
@@ -149,11 +153,13 @@ var DataTypesPerLayer = map[ClientType]map[MetricName]DataType{
 		BlockNonce:      Uint64,
 	},
 	Beacon: {
-		SlotBlock:                  Uint64,
-		FinalizedEpoch:             Uint64,
-		JustifiedEpoch:             Uint64,
-		SlotAttestations:           Uint64,
-		SlotAttestationsPercentage: Uint64,
+		SlotBlock:                   Uint64,
+		FinalizedEpoch:              Uint64,
+		JustifiedEpoch:              Uint64,
+		SlotAttestations:            Uint64,
+		SlotAttestationsPercentage:  Uint64,
+		SyncParticipationCount:      Uint64,
+		SyncParticipationPercentage: Uint64,
 	},
 }
 

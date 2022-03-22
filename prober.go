@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"sync"
 	"syscall"
 )
@@ -84,6 +85,16 @@ func main() {
 		}
 	}
 
+	if len(verifications) == 0 {
+		// Try to use default_verifications.yml
+		if path, err := os.Getwd(); err == nil {
+			defaultVerificationsPath := filepath.Join(path, "default_verifications.yml")
+			if _, err = os.Stat(defaultVerificationsPath); err == nil {
+				verifications.Set(defaultVerificationsPath)
+			}
+		}
+	}
+
 	for _, el := range ExecutionClients {
 		el.TTD = ttd
 		el.UpdateTTDTimestamp = updateAllTTDTimestamps
@@ -96,7 +107,7 @@ func main() {
 	}
 
 	if prober.Probes.ExecutionVerifications() == 0 {
-		fmt.Printf("At least 1 execution layer verification is required")
+		fmt.Printf("At least 1 execution layer verification is required\n")
 		os.Exit(1)
 	}
 

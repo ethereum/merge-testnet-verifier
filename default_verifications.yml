@@ -89,3 +89,12 @@
   AggregateFunction: Average
   PassCriteria:      MinimumValue
   PassValue:         95
+
+- VerificationName:  Post-Merge Sync Participation Percentage
+  ClientType:        Beacon
+  PostMerge:         true
+  CheckDelaySeconds: 1
+  MetricName:        SyncParticipationPercentage
+  AggregateFunction: Average
+  PassCriteria:      MinimumValue
+  PassValue:         95
