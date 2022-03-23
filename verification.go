@@ -56,7 +56,7 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 		if v.Verification.PostMerge {
 			ttdBlockSlot, err := (*v.Client).UpdateGetTTDBlockSlot()
 			if err != nil {
-				log15.Warn("Error getting ttd block/slot", "client", (*v.Client).ClientType(), "clientID", (*v.Client).ClientID())
+				log15.Warn("Error getting ttd block/slot", "client", (*v.Client).ClientType(), "clientID", (*v.Client).ClientID(), "error", err)
 				continue
 			}
 			if ttdBlockSlot == nil {

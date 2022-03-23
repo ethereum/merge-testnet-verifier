@@ -100,34 +100,28 @@ func (el *ExecutionClient) GetLatestBlockSlotNumber() (uint64, error) {
 }
 
 func (el *ExecutionClient) GetDataPoint(dataName MetricName, blockNumber uint64) (interface{}, error) {
+	el.l.Lock()
+	defer el.l.Unlock()
 	switch dataName {
 	case BlockCount:
-		el.l.Lock()
-		defer el.l.Unlock()
 		_, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
 		if err != nil {
 			return nil, err
 		}
 		return uint64(1), nil
 	case BlockBaseFee:
-		el.l.Lock()
-		defer el.l.Unlock()
 		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
 		if err != nil {
 			return nil, err
 		}
 		return header.BaseFee, nil
 	case BlockGasUsed:
-		el.l.Lock()
-		defer el.l.Unlock()
 		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
 		if err != nil {
 			return nil, err
 		}
 		return header.GasUsed, nil
 	case BlockDifficulty:
-		el.l.Lock()
-		defer el.l.Unlock()
 		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
 		if err != nil {
 			return nil, err
@@ -142,16 +136,12 @@ func (el *ExecutionClient) GetDataPoint(dataName MetricName, blockNumber uint64)
 		}
 		return header.MixDigest.Big(), nil
 	case BlockUnclesHash:
-		el.l.Lock()
-		defer el.l.Unlock()
 		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
 		if err != nil {
 			return nil, err
 		}
 		return header.UncleHash.Big(), nil
 	case BlockNonce:
-		el.l.Lock()
-		defer el.l.Unlock()
 		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
 		if err != nil {
 			return nil, err
