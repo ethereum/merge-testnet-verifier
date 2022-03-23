@@ -1,5 +1,5 @@
 - VerificationName:  Post-Merge Execution Blocks Produced
-  ClientLayer:        Execution
+  ClientLayer:       Execution
   PostMerge:         true
   CheckDelaySeconds: 1
   MetricName:        BlockCount
@@ -8,7 +8,7 @@
   PassValue:         1
 
 - VerificationName:  Post-Merge Execution Blocks Average GasUsed
-  ClientLayer:        Execution
+  ClientLayer:       Execution
   PostMerge:         true
   CheckDelaySeconds: 1
   MetricName:        BlockGasUsed
@@ -17,7 +17,7 @@
   PassValue:         1
 
 - VerificationName:  Post-Merge Execution Blocks Average BaseFee
-  ClientLayer:        Execution
+  ClientLayer:       Execution
   PostMerge:         true
   CheckDelaySeconds: 1
   MetricName:        BlockBaseFee
@@ -26,7 +26,7 @@
   PassValue:         1
 
 - VerificationName:  Post-Merge Execution Blocks Total Difficulty
-  ClientLayer:        Execution
+  ClientLayer:       Execution
   PostMerge:         true
   CheckDelaySeconds: 1
   MetricName:        BlockDifficulty
@@ -35,7 +35,7 @@
   PassValue:         0
 
 - VerificationName:       Post-Merge Execution Blocks Invalid Uncle Hash
-  ClientLayer:             Execution
+  ClientLayer:            Execution
   PostMerge:              true
   CheckDelaySeconds:      1
   MetricName:             BlockUnclesHash
@@ -45,7 +45,7 @@
   PassValue:              0
 
 - VerificationName:       Post-Merge Execution Blocks Invalid Nonce
-  ClientLayer:             Execution
+  ClientLayer:            Execution
   PostMerge:              true
   CheckDelaySeconds:      1
   MetricName:             BlockNonce
@@ -55,7 +55,7 @@
   PassValue:              0
 
 - VerificationName:  Post-Merge Beacon Blocks Produced
-  ClientLayer:        Beacon
+  ClientLayer:       Beacon
   PostMerge:         true
   CheckDelaySeconds: 12
   MetricName:        SlotBlock
@@ -64,7 +64,7 @@
   PassValue:         1
 
 - VerificationName:  Post-Merge Justified Epochs
-  ClientLayer:        Beacon
+  ClientLayer:       Beacon
   PostMerge:         true
   CheckDelaySeconds: 12
   MetricName:        FinalizedEpoch
@@ -73,7 +73,7 @@
   PassValue:         1
 
 - VerificationName:  Post-Merge Finalized Epochs
-  ClientLayer:        Beacon
+  ClientLayer:       Beacon
   PostMerge:         true
   CheckDelaySeconds: 12
   MetricName:        FinalizedEpoch
@@ -82,7 +82,7 @@
   PassValue:         2
 
 - VerificationName:  Post-Merge Attestations Per Slot
-  ClientLayer:        Beacon
+  ClientLayer:       Beacon
   PostMerge:         true
   CheckDelaySeconds: 1
   MetricName:        SlotAttestationsPercentage
@@ -91,7 +91,7 @@
   PassValue:         95
 
 - VerificationName:  Post-Merge Sync Participation Percentage
-  ClientLayer:        Beacon
+  ClientLayer:       Beacon
   PostMerge:         true
   CheckDelaySeconds: 1
   MetricName:        SyncParticipationPercentage
