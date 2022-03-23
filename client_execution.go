@@ -5,16 +5,18 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 type ExecutionClient struct {
+	Type   ClientType
+	ID     int
 	RPCUrl string
 	Eth    *ethclient.Client
 	RPC    *rpc.Client
@@ -37,8 +39,16 @@ type TotalDifficulty struct {
 	TotalDifficulty *hexutil.Big `json:"totalDifficulty"`
 }
 
-func (el *ExecutionClient) ClientType() ClientType {
+func (el *ExecutionClient) ClientLayer() ClientLayer {
 	return Execution
+}
+
+func (el *ExecutionClient) ClientVersion() (string, error) {
+	var clientVersion *string
+	if err := el.RPC.CallContext(el.Ctx(), &clientVersion, "web3_clientVersion"); err != nil {
+		return "", err
+	}
+	return *clientVersion, nil
 }
 
 func (el *ExecutionClient) UpdateGetTTDBlockSlot() (*uint64, error) {
@@ -70,7 +80,7 @@ func (el *ExecutionClient) UpdateGetTTDBlockSlot() (*uint64, error) {
 					if el.UpdateTTDTimestamp != nil {
 						el.UpdateTTDTimestamp(el.TTDBlockTimestamp)
 					}
-					fmt.Printf("TTD Block Reached: %d\n", bn)
+					log15.Info("TTD Block Reached", "client", el.ClientID(), "block", bn)
 					break
 				}
 				if currentNumber == 0 {
@@ -160,33 +170,37 @@ func (el *ExecutionClient) Ctx() context.Context {
 	return el.lastCtx
 }
 
-type ExecutionClients []*ExecutionClient
+func (el *ExecutionClient) String() string {
+	return el.RPCUrl
+}
 
-func (els *ExecutionClients) Set(rpcUrl string) error {
+func (el *ExecutionClient) ClientType() ClientType {
+	return el.Type
+}
+
+func (el *ExecutionClient) ClientID() int {
+	return el.ID
+}
+
+func (el *ExecutionClient) Close() error {
+	el.Eth.Close()
+	return nil
+}
+
+func NewExecutionClient(clientType ClientType, id int, rpcUrl string) (*ExecutionClient, error) {
 	client := &http.Client{}
 	rpcClient, err := rpc.DialHTTPWithClient(rpcUrl, client)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	eth := ethclient.NewClient(rpcClient)
 
 	el := ExecutionClient{
+		Type:   clientType,
+		ID:     id,
 		RPCUrl: rpcUrl,
 		Eth:    eth,
 		RPC:    rpcClient,
 	}
-	*els = append(*els, &el)
-	return nil
-}
-
-func (els *ExecutionClients) RPCUrls() *[]string {
-	rpcurls := make([]string, 0)
-	for _, el := range *els {
-		rpcurls = append(rpcurls, el.RPCUrl)
-	}
-	return &rpcurls
-}
-
-func (els *ExecutionClients) String() string {
-	return strings.Join(*els.RPCUrls(), ",")
+	return &el, nil
 }

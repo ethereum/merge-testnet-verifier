@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 type VerificationOutcome struct {
@@ -11,31 +13,36 @@ type VerificationOutcome struct {
 	Message string
 }
 
-func (vOut *VerificationOutcome) String(verificationName string) string {
-	if vOut.Success {
-		return fmt.Sprintf("PASS (%s): %s", verificationName, vOut.Message)
-	}
-	return fmt.Sprintf("FAIL (%s): %s", verificationName, vOut.Message)
-}
+type VerificationProbes []*VerificationProbe
 
-type VerificationProbes []VerificationProbe
-
-func NewVerificationProbes(client Client, verifications []Verification) []VerificationProbe {
-	clientType := client.ClientType()
-	verifProbes := make([]VerificationProbe, 0)
+func NewVerificationProbes(client *Client, verifications []Verification) VerificationProbes {
+	clientLayer := (*client).ClientLayer()
+	verifProbes := make([]*VerificationProbe, 0)
 	for _, v := range verifications {
-		if v.ClientType == clientType {
+		if v.ClientLayer == clientLayer {
 			dpoints := make(DataPoints)
 			verif := v
 			vProbe := VerificationProbe{
 				Verification:           &verif,
-				Client:                 &client,
+				Client:                 client,
 				DataPointsPerSlotBlock: dpoints,
 			}
-			verifProbes = append(verifProbes, vProbe)
+			verifProbes = append(verifProbes, &vProbe)
 		}
 	}
 	return verifProbes
+}
+
+func (vps *VerificationProbes) AnySyncing() bool {
+	if vps == nil {
+		return false
+	}
+	for _, v := range *vps {
+		if v.IsSyncing {
+			return true
+		}
+	}
+	return false
 }
 
 func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
@@ -49,7 +56,7 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 		if v.Verification.PostMerge {
 			ttdBlockSlot, err := (*v.Client).UpdateGetTTDBlockSlot()
 			if err != nil {
-				fmt.Printf("WARN: got error: %v\n", err)
+				log15.Warn("Error getting ttd block/slot", "client", (*v.Client).ClientType(), "clientID", (*v.Client).ClientID())
 				continue
 			}
 			if ttdBlockSlot == nil {
@@ -62,15 +69,15 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 		}
 		latestBlockSlot, err := (*v.Client).GetLatestBlockSlotNumber()
 		if err != nil {
-			fmt.Printf("WARN: got error: %v\n", err)
+			log15.Warn("Error getting latest block/slot number", "error", err)
 			continue
 		}
 
 		if latestBlockSlot > v.PreviousDataPointSlotBlock {
-			printSyncStatus := false
-			if (latestBlockSlot - v.PreviousDataPointSlotBlock) > 10 {
-				fmt.Printf("INFO: Syncing data %s\n", v.Verification.MetricName)
-				printSyncStatus = true
+			finishedSyncing := false
+			if !v.IsSyncing && (latestBlockSlot-v.PreviousDataPointSlotBlock) > 10 {
+				log15.Info("Syncing data", "type", v.Verification.MetricName)
+				v.IsSyncing = true
 			}
 			currentBlockSlot := v.PreviousDataPointSlotBlock + 1
 			for ; currentBlockSlot <= latestBlockSlot; currentBlockSlot++ {
@@ -80,9 +87,16 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 				}
 				v.DataPointsPerSlotBlock[currentBlockSlot] = newDataPoint
 				v.PreviousDataPointSlotBlock = currentBlockSlot
+				if currentBlockSlot == latestBlockSlot {
+					finishedSyncing = true
+				}
 			}
-			if printSyncStatus {
-				fmt.Printf("INFO: Finished syncing data %s\n", v.Verification.MetricName)
+			if v.IsSyncing && finishedSyncing {
+				log15.Info("Finished syncing data", "datatype", v.Verification.MetricName)
+				v.IsSyncing = false
+				if !v.AllProbesClient.AnySyncing() {
+					log15.Info("Finished syncing all data", "client", (*v.Client).ClientType(), "clientID", (*v.Client).ClientID())
+				}
 			}
 		}
 	}
@@ -90,7 +104,7 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 }
 
 func (v *VerificationProbe) Verify() (VerificationOutcome, error) {
-	if dataLayer, ok := DataTypesPerLayer[v.Verification.ClientType]; ok {
+	if dataLayer, ok := DataTypesPerLayer[v.Verification.ClientLayer]; ok {
 		if dataType, ok := dataLayer[v.Verification.MetricName]; ok {
 			switch dataType {
 			case Uint64:
@@ -186,7 +200,7 @@ func (v *VerificationProbe) VerifyUint64() (VerificationOutcome, error) {
 func (vps VerificationProbes) ExecutionVerifications() uint64 {
 	retVal := uint64(0)
 	for _, vp := range vps {
-		if vp.Verification.ClientType == Execution {
+		if vp.Verification.ClientLayer == Execution {
 			retVal++
 		}
 	}
@@ -196,7 +210,7 @@ func (vps VerificationProbes) ExecutionVerifications() uint64 {
 func (vps VerificationProbes) BeaconVerifications() uint64 {
 	retVal := uint64(0)
 	for _, vp := range vps {
-		if vp.Verification.ClientType == Beacon {
+		if vp.Verification.ClientLayer == Beacon {
 			retVal++
 		}
 	}

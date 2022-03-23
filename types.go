@@ -14,7 +14,7 @@ import (
 
 type Verification struct {
 	VerificationName       string            `yaml:"VerificationName"`
-	ClientType             ClientType        `yaml:"ClientType"`
+	ClientLayer            ClientLayer       `yaml:"ClientLayer"`
 	PostMerge              bool              `yaml:"PostMerge"`
 	CheckDelaySeconds      int               `yaml:"CheckDelaySeconds"`
 	MetricName             MetricName        `yaml:"MetricName"`
@@ -26,7 +26,9 @@ type Verification struct {
 
 type VerificationProbe struct {
 	Verification               *Verification
+	AllProbesClient            *VerificationProbes
 	Client                     *Client
+	IsSyncing                  bool
 	PreviousDataPointSlotBlock uint64
 	DataPointsPerSlotBlock     DataPoints
 }
@@ -60,11 +62,57 @@ func (vs *Verifications) String() string {
 type ClientType uint64
 
 const (
-	Execution ClientType = iota
+	Geth ClientType = iota
+	Nethermind
+	Besu
+	Erigon
+	Lodestar
+	Nimbus
+	Teku
+	Prysm
+	Lighthouse
+)
+
+var ClientTypeNames = map[string]ClientType{
+	// Execution Types
+	"Geth":       Geth,
+	"Nethermind": Nethermind,
+	"Besu":       Besu,
+	"Erigon":     Erigon,
+	"Lodestar":   Lodestar,
+	"Nimbus":     Nimbus,
+	"Teku":       Teku,
+	"Prysm":      Prysm,
+	"Lighthouse": Lighthouse,
+}
+
+func (c ClientType) String() string {
+	for k, v := range ClientTypeNames {
+		if v == c {
+			return k
+		}
+	}
+	return ""
+}
+
+func ParseClientTypeString(str string) (ClientType, bool) {
+	strLower := strings.ToLower(str)
+	for k, v := range ClientTypeNames {
+		if strings.ToLower(k) == strLower {
+			return v, true
+		}
+	}
+	return Geth, false
+}
+
+type ClientLayer uint64
+
+const (
+	Execution ClientLayer = iota
 	Beacon
 )
 
-func (l *ClientType) UnmarshalText(input []byte) error {
+func (l *ClientLayer) UnmarshalText(input []byte) error {
 	s := string(input)
 	if s == "Execution" {
 		*l = Execution
@@ -74,6 +122,18 @@ func (l *ClientType) UnmarshalText(input []byte) error {
 		return nil
 	}
 	return fmt.Errorf("Invalid layer type: %s", s)
+}
+
+var ClientTypeToLayer = map[ClientType]ClientLayer{
+	Geth:       Execution,
+	Nethermind: Execution,
+	Besu:       Execution,
+	Erigon:     Execution,
+	Lodestar:   Beacon,
+	Nimbus:     Beacon,
+	Teku:       Beacon,
+	Prysm:      Beacon,
+	Lighthouse: Beacon,
 }
 
 type MetricName uint64
@@ -142,7 +202,7 @@ const (
 	BigInt
 )
 
-var DataTypesPerLayer = map[ClientType]map[MetricName]DataType{
+var DataTypesPerLayer = map[ClientLayer]map[MetricName]DataType{
 	Execution: {
 		BlockCount:      Uint64,
 		BlockBaseFee:    BigInt,

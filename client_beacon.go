@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 var (
@@ -19,6 +19,8 @@ var (
 )
 
 type BeaconClient struct {
+	Type       ClientType
+	ID         int
 	BaseURL    string
 	HTTPClient *http.Client
 
@@ -43,8 +45,20 @@ type BeaconClient struct {
 	lastCancel context.CancelFunc
 }
 
-func (cl *BeaconClient) ClientType() ClientType {
+func (cl *BeaconClient) ClientLayer() ClientLayer {
 	return Beacon
+}
+
+func (cl *BeaconClient) ClientVersion() (string, error) {
+	type BeaconVersion struct {
+		Version string `json:"version"`
+	}
+	var resp BeaconVersion
+	err := cl.sendRequest(GET_REQUEST, V1_NODE_VERSION_ENDPOINT, &resp)
+	if err != nil {
+		return "", err
+	}
+	return resp.Version, nil
 }
 
 func (cl *BeaconClient) UpdateTTDTimestamp(newTimestamp uint64) {
@@ -90,7 +104,6 @@ func (cl *BeaconClient) UpdateGetTTDBlockSlot() (*uint64, error) {
 	if cl.TTDTimestamp != nil {
 		slotAtTTD, err := cl.SlotAtTime(*cl.TTDTimestamp)
 		if err != nil {
-			fmt.Printf("Error getting slot at time: %v\n", err)
 			return nil, err
 		}
 		slot := slotAtTTD
@@ -132,7 +145,7 @@ func (cl *BeaconClient) GetSlotCommittees(slotNumber uint64) (*[]Committee, erro
 func (cl *BeaconClient) GetSlotCommitteeSize(slotNumber uint64) (uint64, error) {
 	slotCommittees, err := cl.GetSlotCommittees(slotNumber)
 	if err != nil {
-		fmt.Printf("Error getting Slot Committees: %v\n", err)
+		log15.Warn("Error getting Slot Committees", "client", cl.ClientType(), "clientID", cl.ClientID(), "slot", slotNumber, "error", err)
 		return 0, err
 	}
 	committeeCount := uint64(0)
@@ -364,21 +377,24 @@ func (cl *BeaconClient) sendRequest(requestType string, requestEndPoint string, 
 	return nil
 }
 
-type BeaconClients []*BeaconClient
-
-func (cls *BeaconClients) BaseURLs() *[]string {
-	baseURLs := make([]string, 0)
-	for _, el := range *cls {
-		baseURLs = append(baseURLs, el.BaseURL)
-	}
-	return &baseURLs
+func (cl *BeaconClient) String() string {
+	return cl.BaseURL
 }
 
-func (cls *BeaconClients) String() string {
-	return strings.Join(*cls.BaseURLs(), ",")
+func (cl *BeaconClient) ClientType() ClientType {
+	return cl.Type
 }
 
-func (cls *BeaconClients) Set(baseUrl string) error {
+func (cl *BeaconClient) ClientID() int {
+	return cl.ID
+}
+
+func (cl *BeaconClient) Close() error {
+	cl.HTTPClient.CloseIdleConnections()
+	return nil
+}
+
+func NewBeaconClient(clientType ClientType, id int, baseUrl string) (*BeaconClient, error) {
 	client := &http.Client{}
 
 	if baseUrl[len(baseUrl)-1:] == "/" {
@@ -386,17 +402,18 @@ func (cls *BeaconClients) Set(baseUrl string) error {
 	}
 
 	cl := BeaconClient{
+		Type:       clientType,
+		ID:         id,
 		BaseURL:    baseUrl,
 		HTTPClient: client,
 	}
 
 	res := Spec{}
 	if err := cl.sendRequest(GET_REQUEST, V1_CONFIG_SPEC_ENDPOINT, &res); err != nil {
-		return err
+		return nil, err
 	}
 
 	cl.Spec = res
 
-	*cls = append(*cls, &cl)
-	return nil
+	return &cl, nil
 }

@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
+
+	"gopkg.in/inconshreveable/log15.v2"
 )
 
 type TTD struct {
@@ -25,11 +27,10 @@ func (t *TTD) Set(val string) error {
 }
 
 type Prober struct {
-	ExecutionClients ExecutionClients
-	BeaconClients    BeaconClients
-	Probes           VerificationProbes
-	WaitGroup        sync.WaitGroup
-	StopChan         chan struct{}
+	Clients   Clients
+	Probes    VerificationProbes
+	WaitGroup sync.WaitGroup
+	StopChan  chan struct{}
 }
 
 func (p *Prober) StartProbes() {
@@ -47,26 +48,28 @@ func (p *Prober) StopProbes() {
 
 func (p *Prober) WrapUp() {
 	for _, vp := range p.Probes {
-
 		if vOut, err := vp.Verify(); err != nil {
-			fmt.Printf("ERR(%s): %s\n", vp.Verification.VerificationName, err)
+			log15.Crit("Unable to perform verification", "client", (*vp.Client).ClientType(), "clientID", (*vp.Client).ClientID(), "verification", vp.Verification.VerificationName)
 		} else {
-			fmt.Printf("%s\n", vOut.String(vp.Verification.VerificationName))
+			var f func(string, ...interface{})
+			if vOut.Success {
+				f = log15.Info
+			} else {
+				f = log15.Crit
+			}
+			f(vp.Verification.VerificationName, "client", (*vp.Client).ClientType(), "clientID", (*vp.Client).ClientID(), "pass", vOut.Success, "extra", vOut.Message)
 		}
 	}
 }
 
 func main() {
 	var (
-		ExecutionClients ExecutionClients
-		BeaconClients    BeaconClients
-		ttd              TTD
-		verifications    Verifications
+		clients       Clients
+		ttd           TTD
+		verifications Verifications
 	)
-	flag.Var(&ExecutionClients, "exec-client",
-		"Execution client RPC endpoint to check for the client's status")
-	flag.Var(&BeaconClients, "beacon-client",
-		"Consensus client REST API endpoint to check for the client's status")
+	flag.Var(&clients, "client",
+		"Execution/Beacon client URL endpoint to check for the client's status in the form: <Client name>,http://<URL>:<IP>")
 	flag.Var(&ttd, "ttd",
 		"Value of the Terminal Total Difficulty for the subscribed clients")
 	flag.Var(&verifications, "verifications",
@@ -74,14 +77,16 @@ func main() {
 	flag.Parse()
 
 	prober := Prober{
-		ExecutionClients: ExecutionClients,
-		BeaconClients:    BeaconClients,
-		Probes:           make([]VerificationProbe, 0),
+		Clients: clients,
+		Probes:  make(VerificationProbes, 0),
 	}
 
 	updateAllTTDTimestamps := func(timestamp uint64) {
-		for _, cl := range BeaconClients {
-			cl.UpdateTTDTimestamp(timestamp)
+		for _, cl := range clients {
+			if (*cl).ClientLayer() == Beacon {
+				bc := (*cl).(*BeaconClient)
+				bc.UpdateTTDTimestamp(timestamp)
+			}
 		}
 	}
 
@@ -95,19 +100,24 @@ func main() {
 		}
 	}
 
-	for _, el := range ExecutionClients {
-		el.TTD = ttd
-		el.UpdateTTDTimestamp = updateAllTTDTimestamps
-		prober.Probes = append(prober.Probes, NewVerificationProbes(el, verifications)...)
-	}
-
-	for _, cl := range BeaconClients {
-		cl.TTD = ttd
-		prober.Probes = append(prober.Probes, NewVerificationProbes(cl, verifications)...)
+	for _, cl := range clients {
+		if (*cl).ClientLayer() == Beacon {
+			bc := (*cl).(*BeaconClient)
+			bc.TTD = ttd
+		} else if (*cl).ClientLayer() == Execution {
+			el := (*cl).(*ExecutionClient)
+			el.TTD = ttd
+			el.UpdateTTDTimestamp = updateAllTTDTimestamps
+		}
+		clientProbes := NewVerificationProbes(cl, verifications)
+		for _, cp := range clientProbes {
+			cp.AllProbesClient = &clientProbes
+		}
+		prober.Probes = append(prober.Probes, clientProbes...)
 	}
 
 	if prober.Probes.ExecutionVerifications() == 0 {
-		fmt.Printf("At least 1 execution layer verification is required\n")
+		log15.Crit("At least 1 execution layer verification is required, exiting")
 		os.Exit(1)
 	}
 

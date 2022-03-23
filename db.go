@@ -147,7 +147,6 @@ func (dp DataPoints) AggregateBigInt(af AggregateFunction, aggregateFuncValue In
 			count++
 		}
 		if count > 0 {
-			fmt.Printf("Total=%v, Count=%v\n", aggregatedValue, count)
 			aggregatedValue = aggregatedValue.Div(aggregatedValue, big.NewInt(count))
 		}
 	case Sum:

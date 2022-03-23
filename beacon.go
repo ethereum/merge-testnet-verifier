@@ -15,6 +15,7 @@ var (
 
 	// Beacon Endpoints
 	V1_CONFIG_SPEC_ENDPOINT                       = "/eth/v1/config/spec"
+	V1_NODE_VERSION_ENDPOINT                      = "/eth/v1/node/version"
 	V1_BEACON_GENESIS_ENDPOINT                    = "/eth/v1/beacon/genesis"
 	V2_BEACON_BLOCKS_ENDPOINT                     = "/eth/v2/beacon/blocks/%d"
 	V1_BEACON_HEADERS_ENDPOINT                    = "/eth/v1/beacon/headers/%d"
