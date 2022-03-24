@@ -23,7 +23,7 @@
   MetricName:        BlockBaseFee
   AggregateFunction: Average
   PassCriteria:      MinimumValue
-  PassValue:         1
+  PassValue:         256
 
 - VerificationName:  Post-Merge Execution Blocks Total Difficulty
   ClientLayer:       Execution
@@ -81,11 +81,11 @@
   PassCriteria:      MinimumValue
   PassValue:         2
 
-- VerificationName:  Post-Merge Attestations Per Slot
+- VerificationName:  Post-Merge Epoch Attestation Performance
   ClientLayer:       Beacon
   PostMerge:         true
-  CheckDelaySeconds: 1
-  MetricName:        SlotAttestationsPercentage
+  CheckDelaySeconds: 12
+  MetricName:        EpochAttestationPerformance
   AggregateFunction: Average
   PassCriteria:      MinimumValue
   PassValue:         95
@@ -93,7 +93,7 @@
 - VerificationName:  Post-Merge Sync Participation Percentage
   ClientLayer:       Beacon
   PostMerge:         true
-  CheckDelaySeconds: 1
+  CheckDelaySeconds: 12
   MetricName:        SyncParticipationPercentage
   AggregateFunction: Average
   PassCriteria:      MinimumValue

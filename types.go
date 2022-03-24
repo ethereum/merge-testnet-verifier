@@ -153,9 +153,17 @@ const (
 	JustifiedEpoch
 	SlotAttestations
 	SlotAttestationsPercentage
+	EpochAttestationPerformance
 	SyncParticipationCount
 	SyncParticipationPercentage
 )
+
+var MetricClientTypeRequirements = map[MetricName][]ClientType{
+	EpochAttestationPerformance: {
+		// This metric requires validator_inclusion API from lighthouse
+		Lighthouse,
+	},
+}
 
 var MetricNames = map[string]MetricName{
 	// Execution Types
@@ -172,6 +180,7 @@ var MetricNames = map[string]MetricName{
 	"JustifiedEpoch":              JustifiedEpoch,
 	"SlotAttestations":            SlotAttestations,
 	"SlotAttestationsPercentage":  SlotAttestationsPercentage,
+	"EpochAttestationPerformance": EpochAttestationPerformance,
 	"SyncParticipationCount":      SyncParticipationCount,
 	"SyncParticipationPercentage": SyncParticipationPercentage,
 }
@@ -218,6 +227,7 @@ var DataTypesPerLayer = map[ClientLayer]map[MetricName]DataType{
 		JustifiedEpoch:              Uint64,
 		SlotAttestations:            Uint64,
 		SlotAttestationsPercentage:  Uint64,
+		EpochAttestationPerformance: Uint64,
 		SyncParticipationCount:      Uint64,
 		SyncParticipationPercentage: Uint64,
 	},

@@ -19,14 +19,26 @@ func NewVerificationProbes(client Client, verifications []Verification) Verifica
 	verifProbes := make([]*VerificationProbe, 0)
 	for _, v := range verifications {
 		if v.ClientLayer == clientLayer {
-			dpoints := make(DataPoints)
-			verif := v
-			vProbe := VerificationProbe{
-				Verification:           &verif,
-				Client:                 client,
-				DataPointsPerSlotBlock: dpoints,
+			requiredClientFound := true
+			if requiredClients, ok := MetricClientTypeRequirements[v.MetricName]; ok {
+				requiredClientFound = false
+				for _, requiredClient := range requiredClients {
+					if requiredClient == client.ClientType() {
+						requiredClientFound = true
+						break
+					}
+				}
 			}
-			verifProbes = append(verifProbes, &vProbe)
+			if requiredClientFound {
+				dpoints := make(DataPoints)
+				verif := v
+				vProbe := VerificationProbe{
+					Verification:           &verif,
+					Client:                 client,
+					DataPointsPerSlotBlock: dpoints,
+				}
+				verifProbes = append(verifProbes, &vProbe)
+			}
 		}
 	}
 	return verifProbes
@@ -83,6 +95,7 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}) {
 			for ; currentBlockSlot <= latestBlockSlot; currentBlockSlot++ {
 				newDataPoint, err := v.Client.GetDataPoint(v.Verification.MetricName, currentBlockSlot)
 				if err != nil {
+					log15.Debug("Error during datapoint fetch", "client", v.Client.ClientType(), "clientID", v.Client.ClientID(), "datatype", v.Verification.MetricName, "error", err)
 					break
 				}
 				v.DataPointsPerSlotBlock[currentBlockSlot] = newDataPoint

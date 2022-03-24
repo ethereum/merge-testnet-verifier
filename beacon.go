@@ -22,6 +22,9 @@ var (
 	V1_BEACON_STATE_FINALITY_CHECKPOINTS_ENDPOINT = "/eth/v1/beacon/states/%d/finality_checkpoints"
 	V1_BEACON_STATE_COMMITTEES_ENDPOINT           = "/eth/v1/beacon/states/%d/committees"
 	V1_BEACON_BLOCKS_ATTESTATIONS_ENDPOINT        = "/eth/v1/beacon/blocks/%d/attestations"
+
+	// Client Specific Endpoints
+	LIGHTHOUSE_GLOBAL_VALIDATOR_INCLUSION = "/lighthouse/validator_inclusion/%d/global"
 )
 
 type Spec struct {

@@ -19,10 +19,11 @@ var (
 )
 
 type BeaconClient struct {
-	Type       ClientType
-	ID         int
-	BaseURL    string
-	HTTPClient *http.Client
+	Type          ClientType
+	ID            int
+	BaseURL       string
+	HTTPClient    *http.Client
+	PreviousEpoch uint64
 
 	// Spec config
 	Spec Spec
@@ -111,8 +112,20 @@ func (cl *BeaconClient) SlotAtTime(t uint64) (uint64, error) {
 	return (t - (*genesisTime)) / cl.Spec.SecondsPerSlot, nil
 }
 
+func (cl *BeaconClient) EpochForSlot(slot uint64) uint64 {
+	return slot / cl.Spec.SlotsPerEpoch
+}
+
 func (cl *BeaconClient) GetOngoingSlotNumber() (uint64, error) {
 	return cl.SlotAtTime(uint64(time.Now().Unix()))
+}
+
+func (cl *BeaconClient) GetOngoingEpochNumber() (uint64, error) {
+	slot, err := cl.GetOngoingSlotNumber()
+	if err != nil {
+		return 0, err
+	}
+	return cl.EpochForSlot(slot), nil
 }
 
 func (cl *BeaconClient) GetLatestBlockSlotNumber() (uint64, error) {
@@ -164,7 +177,6 @@ func (cl *BeaconClient) GetSlotCommittees(slotNumber uint64) (*[]Committee, erro
 func (cl *BeaconClient) GetSlotCommitteeSize(slotNumber uint64) (uint64, error) {
 	slotCommittees, err := cl.GetSlotCommittees(slotNumber)
 	if err != nil {
-		log15.Warn("Error getting Slot Committees", "client", cl.ClientType(), "clientID", cl.ClientID(), "slot", slotNumber, "error", err)
 		return 0, err
 	}
 	var committeeCount uint64
@@ -233,6 +245,10 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 	for {
 		// We fetch information only for previous slots, not current ongoing slot
 		ongoingSlot, _ := cl.GetOngoingSlotNumber()
+		if cl.EpochForSlot(ongoingSlot) > cl.PreviousEpoch {
+			log15.Info("New epoch reached", "client", cl.ClientType(), "clientID", cl.ClientID(), "epoch", cl.EpochForSlot(ongoingSlot))
+			cl.PreviousEpoch = cl.EpochForSlot(ongoingSlot)
+		}
 		if slotNumber < ongoingSlot {
 			break
 		}
@@ -312,6 +328,35 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 		}
 		return (slotAttestations * 100) / committeeSize, nil
 
+	case EpochAttestationPerformance:
+		switch cl.ClientType() {
+		case Lighthouse:
+			currentEpoch, err := cl.GetOngoingEpochNumber()
+			if err != nil {
+				return nil, err
+			}
+			if cl.EpochForSlot(slotNumber) >= currentEpoch {
+				// We can only get accurate information for previous epoch
+				return nil, fmt.Errorf("No information available yet")
+			}
+
+			type ValidatorInclusionGlobal struct {
+				PreviousEpochActiveGwei          uint64 `json:"previous_epoch_active_gwei"`
+				PreviousEpochTargetAttestingGwei uint64 `json:"previous_epoch_target_attesting_gwei"`
+				PreviousEpochHeadAttestingGwei   uint64 `json:"previous_epoch_head_attesting_gwei"`
+			}
+			var resp ValidatorInclusionGlobal
+
+			err = cl.sendRequest(GET_REQUEST, fmt.Sprintf(LIGHTHOUSE_GLOBAL_VALIDATOR_INCLUSION, cl.EpochForSlot(slotNumber)), &resp)
+			if err != nil {
+				return nil, err
+			}
+			// log15.Debug("Lighthouse Validator Inclusion", "client", cl.ClientType(), "clientID", cl.ClientID(), "response", resp)
+			return (resp.PreviousEpochHeadAttestingGwei * 100) / resp.PreviousEpochActiveGwei, nil
+		default:
+			return nil, fmt.Errorf("Invalid client for metric")
+		}
+
 	case SyncParticipationCount:
 		return cl.GetSyncParticipationCountAtSlot(slotNumber)
 
@@ -351,7 +396,7 @@ func (cl *BeaconClient) sendRequest(requestType string, requestEndPoint string, 
 	req = req.WithContext(cl.Ctx())
 
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-	req.Header.Set("Accept", "application/json; charset=utf-8")
+	req.Header.Set("Accept", "application/json")
 
 	res, err := cl.HTTPClient.Do(req)
 	if err != nil {
@@ -361,6 +406,7 @@ func (cl *BeaconClient) sendRequest(requestType string, requestEndPoint string, 
 	defer res.Body.Close()
 
 	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusBadRequest {
+		log15.Debug("Error during request", "request", req)
 		var errRes errorResponse
 		if err = json.NewDecoder(res.Body).Decode(&errRes); err == nil {
 			return errors.New(errRes.Message)
