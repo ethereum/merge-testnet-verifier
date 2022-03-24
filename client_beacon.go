@@ -45,6 +45,29 @@ type BeaconClient struct {
 	lastCancel context.CancelFunc
 }
 
+func NewBeaconClient(clientType ClientType, id int, baseUrl string) (*BeaconClient, error) {
+	client := &http.Client{}
+
+	if baseUrl[len(baseUrl)-1:] == "/" {
+		baseUrl = baseUrl[:len(baseUrl)-1]
+	}
+
+	cl := BeaconClient{
+		Type:       clientType,
+		ID:         id,
+		BaseURL:    baseUrl,
+		HTTPClient: client,
+	}
+
+	var res Spec
+	if err := cl.sendRequest(GET_REQUEST, V1_CONFIG_SPEC_ENDPOINT, &res); err != nil {
+		return nil, err
+	}
+	cl.Spec = res
+
+	return &cl, nil
+}
+
 func (cl *BeaconClient) ClientLayer() ClientLayer {
 	return Beacon
 }
@@ -78,16 +101,16 @@ func (cl *BeaconClient) GetGenesisTime() *uint64 {
 }
 
 func (cl *BeaconClient) SlotAtTime(t uint64) (uint64, error) {
-	genesisTimeP := cl.GetGenesisTime()
-	if genesisTimeP == nil {
-		return 0, fmt.Errorf("No genesis yet")
+	genesisTime := cl.GetGenesisTime()
+	if genesisTime == nil {
+		return 0, fmt.Errorf("no genesis yet")
 	}
-	genesisTime := *genesisTimeP
-	if genesisTime > t {
+	if (*genesisTime) > t {
 		return 0, fmt.Errorf("time before genesis")
 	}
-	return (t - genesisTime) / cl.Spec.SecondsPerSlot, nil
+	return (t - (*genesisTime)) / cl.Spec.SecondsPerSlot, nil
 }
+
 func (cl *BeaconClient) GetOngoingSlotNumber() (uint64, error) {
 	return cl.SlotAtTime(uint64(time.Now().Unix()))
 }
@@ -106,25 +129,22 @@ func (cl *BeaconClient) UpdateGetTTDBlockSlot() (*uint64, error) {
 		if err != nil {
 			return nil, err
 		}
-		slot := slotAtTTD
-		cl.TTDSlotNumber = &slot
+		cl.TTDSlotNumber = &slotAtTTD
 		return cl.TTDSlotNumber, nil
 	}
 	return nil, nil
 }
 
 func (cl *BeaconClient) GetBeaconHeader(slotNumber uint64) (*BeaconHeaderResponse, error) {
-	resp := BeaconHeaderResponse{}
+	var resp BeaconHeaderResponse
 	err := cl.sendRequest(GET_REQUEST, fmt.Sprintf(V1_BEACON_HEADERS_ENDPOINT, slotNumber), &resp)
 	return &resp, err
 }
 
 func (cl *BeaconClient) GetFinalityCheckpoints(slotNumber uint64) (*StateFinalityCheckpoints, error) {
-	resp := StateFinalityCheckpoints{}
-	if err := cl.sendRequest(GET_REQUEST, fmt.Sprintf(V1_BEACON_STATE_FINALITY_CHECKPOINTS_ENDPOINT, slotNumber), &resp); err != nil {
-		return nil, err
-	}
-	return &resp, nil
+	var resp StateFinalityCheckpoints
+	err := cl.sendRequest(GET_REQUEST, fmt.Sprintf(V1_BEACON_STATE_FINALITY_CHECKPOINTS_ENDPOINT, slotNumber), &resp)
+	return &resp, err
 }
 
 func (cl *BeaconClient) GetSlotCommittees(slotNumber uint64) (*[]Committee, error) {
@@ -135,7 +155,6 @@ func (cl *BeaconClient) GetSlotCommittees(slotNumber uint64) (*[]Committee, erro
 	}
 	for _, c := range allCommittees {
 		if c.Slot == slotNumber {
-			c := c
 			committees = append(committees, c)
 		}
 	}
@@ -148,7 +167,7 @@ func (cl *BeaconClient) GetSlotCommitteeSize(slotNumber uint64) (uint64, error) 
 		log15.Warn("Error getting Slot Committees", "client", cl.ClientType(), "clientID", cl.ClientID(), "slot", slotNumber, "error", err)
 		return 0, err
 	}
-	committeeCount := uint64(0)
+	var committeeCount uint64
 	for _, sc := range *slotCommittees {
 		committeeCount += uint64(len(sc.Validators))
 	}
@@ -168,7 +187,6 @@ func (cl *BeaconClient) GetSyncParticipationPercentageAtSlot(blockNumber uint64)
 	if err != nil {
 		return 0, err
 	}
-
 	return (syncParticipationCount * 100) / cl.Spec.SyncCommitteeSize, nil
 }
 
@@ -206,9 +224,8 @@ func (cl *BeaconClient) GetAttestationCountForSlot(slotNumber uint64) (uint64, e
 		select {
 		case <-time.After(time.Second):
 		case <-timeout:
-			return 0, fmt.Errorf("Timeout waiting for attestation count")
+			return 0, fmt.Errorf("timeout waiting for attestation count")
 		}
-
 	}
 }
 
@@ -216,25 +233,20 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 	for {
 		// We fetch information only for previous slots, not current ongoing slot
 		ongoingSlot, _ := cl.GetOngoingSlotNumber()
-		if slotNumber >= ongoingSlot {
-			time.Sleep(time.Second)
-		} else {
+		if slotNumber < ongoingSlot {
 			break
 		}
+		time.Sleep(time.Second)
 	}
 	switch dataName {
 	case SlotBlock:
-		_, err := cl.GetBeaconHeader(slotNumber)
-		if err == nil {
+		if _, err := cl.GetBeaconHeader(slotNumber); err == nil {
 			return uint64(1), nil
 		}
 		return uint64(0), nil
 	case FinalizedEpoch:
 		// Return `1` for each Finalized root change
-		if slotNumber == 0 {
-			return uint64(0), nil
-		}
-		if (slotNumber % cl.Spec.SlotsPerEpoch) != 0 {
+		if slotNumber == 0 || (slotNumber%cl.Spec.SlotsPerEpoch) != 0 {
 			return uint64(0), nil
 		}
 
@@ -242,8 +254,8 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 		if err != nil {
 			return nil, err
 		}
-		zerosHash := common.Hash{}
-		if currentSlotFinalityCheckpoint.Finalized.Root == zerosHash {
+
+		if currentSlotFinalityCheckpoint.Finalized.Root == (common.Hash{}) {
 			return uint64(0), nil
 		}
 
@@ -251,6 +263,7 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 		if err != nil {
 			return nil, err
 		}
+
 		if prevSlotFinalityCheckpoint.Finalized.Root != currentSlotFinalityCheckpoint.Finalized.Root {
 			return uint64(1), nil
 		}
@@ -258,10 +271,7 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 
 	case JustifiedEpoch:
 		// Return `1` for each Justified root change
-		if slotNumber == 0 {
-			return uint64(0), nil
-		}
-		if (slotNumber % cl.Spec.SlotsPerEpoch) != 0 {
+		if slotNumber == 0 || (slotNumber%cl.Spec.SlotsPerEpoch) != 0 {
 			return uint64(0), nil
 		}
 
@@ -269,8 +279,8 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 		if err != nil {
 			return nil, err
 		}
-		zerosHash := common.Hash{}
-		if currentSlotFinalityCheckpoint.Justified.Root == zerosHash {
+
+		if currentSlotFinalityCheckpoint.Justified.Root == (common.Hash{}) {
 			return uint64(0), nil
 		}
 
@@ -278,46 +288,38 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 		if err != nil {
 			return nil, err
 		}
+
 		if prevSlotFinalityCheckpoint.Justified.Root != currentSlotFinalityCheckpoint.Justified.Root {
 			return uint64(1), nil
 		}
 		return uint64(0), nil
 
 	case SlotAttestations:
-		slotAttestations, err := cl.GetAttestationCountForSlot(slotNumber)
-		if err != nil {
-			return slotAttestations, err
-		}
-		return slotAttestations, nil
+		return cl.GetAttestationCountForSlot(slotNumber)
+
 	case SlotAttestationsPercentage:
 		committeeSize, err := cl.GetSlotCommitteeSize(slotNumber)
 		if err != nil {
 			return uint64(0), err
 		}
 		if committeeSize == 0 {
-			return committeeSize, fmt.Errorf("Empty committee for slot %d", slotNumber)
+			return committeeSize, fmt.Errorf("empty committee for slot %d", slotNumber)
 		}
+
 		slotAttestations, err := cl.GetAttestationCountForSlot(slotNumber)
 		if err != nil {
 			return uint64(0), err
 		}
-		perc := (slotAttestations * 100) / committeeSize
-		return perc, nil
+		return (slotAttestations * 100) / committeeSize, nil
+
 	case SyncParticipationCount:
-		participationCount, err := cl.GetSyncParticipationCountAtSlot(slotNumber)
-		if err != nil {
-			return uint64(0), err
-		}
-		return participationCount, err
+		return cl.GetSyncParticipationCountAtSlot(slotNumber)
+
 	case SyncParticipationPercentage:
-		participationPercentage, err := cl.GetSyncParticipationPercentageAtSlot(slotNumber)
-		if err != nil {
-			return uint64(0), err
-		}
-		return participationPercentage, err
+		return cl.GetSyncParticipationPercentageAtSlot(slotNumber)
 	}
 
-	return nil, fmt.Errorf("Invalid data name: %s", dataName)
+	return nil, fmt.Errorf("invalid data name: %s", dataName)
 }
 
 func (cl *BeaconClient) Ctx() context.Context {
@@ -392,28 +394,4 @@ func (cl *BeaconClient) ClientID() int {
 func (cl *BeaconClient) Close() error {
 	cl.HTTPClient.CloseIdleConnections()
 	return nil
-}
-
-func NewBeaconClient(clientType ClientType, id int, baseUrl string) (*BeaconClient, error) {
-	client := &http.Client{}
-
-	if baseUrl[len(baseUrl)-1:] == "/" {
-		baseUrl = baseUrl[:len(baseUrl)-1]
-	}
-
-	cl := BeaconClient{
-		Type:       clientType,
-		ID:         id,
-		BaseURL:    baseUrl,
-		HTTPClient: client,
-	}
-
-	res := Spec{}
-	if err := cl.sendRequest(GET_REQUEST, V1_CONFIG_SPEC_ENDPOINT, &res); err != nil {
-		return nil, err
-	}
-
-	cl.Spec = res
-
-	return &cl, nil
 }

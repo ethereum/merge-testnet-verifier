@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"gopkg.in/inconshreveable/log15.v2"
@@ -15,8 +14,8 @@ type VerificationOutcome struct {
 
 type VerificationProbes []*VerificationProbe
 
-func NewVerificationProbes(client *Client, verifications []Verification) VerificationProbes {
-	clientLayer := (*client).ClientLayer()
+func NewVerificationProbes(client Client, verifications []Verification) VerificationProbes {
+	clientLayer := client.ClientLayer()
 	verifProbes := make([]*VerificationProbe, 0)
 	for _, v := range verifications {
 		if v.ClientLayer == clientLayer {
@@ -45,18 +44,18 @@ func (vps *VerificationProbes) AnySyncing() bool {
 	return false
 }
 
-func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
-	defer wg.Done()
+func (v *VerificationProbe) Loop(stop <-chan struct{}) {
 	for {
 		select {
 		case <-stop:
 			return
 		case <-time.After(time.Second * time.Duration(v.Verification.CheckDelaySeconds)):
 		}
+
 		if v.Verification.PostMerge {
-			ttdBlockSlot, err := (*v.Client).UpdateGetTTDBlockSlot()
+			ttdBlockSlot, err := v.Client.UpdateGetTTDBlockSlot()
 			if err != nil {
-				log15.Warn("Error getting ttd block/slot", "client", (*v.Client).ClientType(), "clientID", (*v.Client).ClientID(), "error", err)
+				log15.Warn("Error getting ttd block/slot", "client", v.Client.ClientType(), "clientID", v.Client.ClientID(), "error", err)
 				continue
 			}
 			if ttdBlockSlot == nil {
@@ -67,7 +66,8 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 				v.PreviousDataPointSlotBlock = *ttdBlockSlot
 			}
 		}
-		latestBlockSlot, err := (*v.Client).GetLatestBlockSlotNumber()
+
+		latestBlockSlot, err := v.Client.GetLatestBlockSlotNumber()
 		if err != nil {
 			log15.Warn("Error getting latest block/slot number", "error", err)
 			continue
@@ -81,7 +81,7 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 			}
 			currentBlockSlot := v.PreviousDataPointSlotBlock + 1
 			for ; currentBlockSlot <= latestBlockSlot; currentBlockSlot++ {
-				newDataPoint, err := (*v.Client).GetDataPoint(v.Verification.MetricName, currentBlockSlot)
+				newDataPoint, err := v.Client.GetDataPoint(v.Verification.MetricName, currentBlockSlot)
 				if err != nil {
 					break
 				}
@@ -95,7 +95,7 @@ func (v *VerificationProbe) Loop(stop <-chan struct{}, wg sync.WaitGroup) {
 				log15.Info("Finished syncing data", "datatype", v.Verification.MetricName)
 				v.IsSyncing = false
 				if !v.AllProbesClient.AnySyncing() {
-					log15.Info("Finished syncing all data", "client", (*v.Client).ClientType(), "clientID", (*v.Client).ClientID())
+					log15.Info("Finished syncing all data", "client", v.Client.ClientType(), "clientID", v.Client.ClientID())
 				}
 			}
 		}
@@ -114,7 +114,7 @@ func (v *VerificationProbe) Verify() (VerificationOutcome, error) {
 			}
 		}
 	}
-	return VerificationOutcome{}, fmt.Errorf("Unknown data: %s", v.Verification.MetricName)
+	return VerificationOutcome{}, fmt.Errorf("unknown data: %s", v.Verification.MetricName)
 }
 
 func (v *VerificationProbe) VerifyBigInt() (VerificationOutcome, error) {
@@ -154,7 +154,7 @@ func (v *VerificationProbe) VerifyBigInt() (VerificationOutcome, error) {
 			}, nil
 		}
 	}
-	return VerificationOutcome{}, fmt.Errorf("Invalid pass criteria for bigInt: %s", v.Verification.PassCriteria)
+	return VerificationOutcome{}, fmt.Errorf("invalid pass criteria for bigInt: %s", v.Verification.PassCriteria)
 }
 
 func (v *VerificationProbe) VerifyUint64() (VerificationOutcome, error) {
@@ -194,7 +194,7 @@ func (v *VerificationProbe) VerifyUint64() (VerificationOutcome, error) {
 			}, nil
 		}
 	}
-	return VerificationOutcome{}, fmt.Errorf("Invalid pass criteria for uint64: %s", v.Verification.PassCriteria)
+	return VerificationOutcome{}, fmt.Errorf("invalid pass criteria for uint64: %s", v.Verification.PassCriteria)
 }
 
 func (vps VerificationProbes) ExecutionVerifications() uint64 {

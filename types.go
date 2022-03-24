@@ -27,7 +27,7 @@ type Verification struct {
 type VerificationProbe struct {
 	Verification               *Verification
 	AllProbesClient            *VerificationProbes
-	Client                     *Client
+	Client                     Client
 	IsSyncing                  bool
 	PreviousDataPointSlotBlock uint64
 	DataPointsPerSlotBlock     DataPoints
@@ -121,7 +121,7 @@ func (l *ClientLayer) UnmarshalText(input []byte) error {
 		*l = Beacon
 		return nil
 	}
-	return fmt.Errorf("Invalid layer type: %s", s)
+	return fmt.Errorf("invalid layer type: %s", s)
 }
 
 var ClientTypeToLayer = map[ClientType]ClientLayer{
@@ -180,7 +180,7 @@ func (dn *MetricName) UnmarshalText(input []byte) error {
 	s := string(input)
 	v, ok := MetricNames[s]
 	if !ok {
-		return fmt.Errorf("Invalid data type: %s", s)
+		return fmt.Errorf("invalid data type: %s", s)
 	}
 	*dn = v
 	return nil
@@ -251,7 +251,7 @@ func (af *AggregateFunction) UnmarshalText(input []byte) error {
 	s := string(input)
 	v, ok := AggregateFunctions[s]
 	if !ok {
-		return fmt.Errorf("Invalid aggregate function: %s", s)
+		return fmt.Errorf("invalid aggregate function: %s", s)
 	}
 	*af = v
 	return nil
@@ -282,7 +282,7 @@ func (pc *PassCriteria) UnmarshalText(input []byte) error {
 	s := string(input)
 	v, ok := PassCriterias[s]
 	if !ok {
-		return fmt.Errorf("Invalid aggregate function: %s", s)
+		return fmt.Errorf("invalid aggregate function: %s", s)
 	}
 	*pc = v
 	return nil
@@ -312,7 +312,7 @@ func (v InputValue) ToBigInt() (*big.Int, error) {
 		var ok bool
 		n, ok = n.SetString(vs, 10)
 		if !ok {
-			return nil, fmt.Errorf("Invalid value for bigInt: %s", vs)
+			return nil, fmt.Errorf("invalid value for bigInt: %s", vs)
 		}
 	}
 
@@ -331,7 +331,7 @@ func (v InputValue) ToUint64() (uint64, error) {
 	} else {
 		n, err = strconv.ParseUint(vs, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("Invalid value for Uint64: %s", vs)
+			return 0, fmt.Errorf("invalid value for Uint64: %s", vs)
 		}
 	}
 

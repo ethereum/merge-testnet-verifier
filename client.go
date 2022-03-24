@@ -36,11 +36,11 @@ type Client interface {
 	Close() error
 }
 
-type Clients []*Client
+type Clients []Client
 
 func (cs *Clients) ContainsID(clientType ClientType, id int) bool {
 	for _, c := range *cs {
-		if (*c).ClientType() == clientType && (*c).ClientID() == id {
+		if c.ClientType() == clientType && c.ClientID() == id {
 			return true
 		}
 	}
@@ -50,22 +50,22 @@ func (cs *Clients) ContainsID(clientType ClientType, id int) bool {
 func (cs *Clients) Set(typeUrl string) error {
 	splitUrl := strings.Split(typeUrl, ",")
 	if len(splitUrl) != 2 {
-		return fmt.Errorf("Invalid format")
+		return fmt.Errorf("invalid format")
 	}
 	clientTypeStr := splitUrl[0]
 	url := splitUrl[1]
 
 	clientType, ok := ParseClientTypeString(clientTypeStr)
 	if !ok {
-		return fmt.Errorf("Invalid client type: %s", clientTypeStr)
+		return fmt.Errorf("invalid client type: %s", clientTypeStr)
 	}
 
 	ct, ok := ClientTypeToLayer[clientType]
 	if !ok {
-		return fmt.Errorf("Unknown client type")
+		return fmt.Errorf("unknown client type")
 	}
 
-	clientID := 0
+	var clientID int
 	for {
 		if !cs.ContainsID(clientType, clientID) {
 			break
@@ -79,28 +79,24 @@ func (cs *Clients) Set(typeUrl string) error {
 		if err != nil {
 			return err
 		}
-		var c Client
-		c = el
-		*cs = append(*cs, &c)
+		*cs = append(*cs, el)
 		return nil
 	case Beacon:
 		bc, err := NewBeaconClient(clientType, clientID, url)
 		if err != nil {
 			return err
 		}
-		var c Client
-		c = bc
-		*cs = append(*cs, &c)
+		*cs = append(*cs, bc)
 		return nil
 	}
 
-	return fmt.Errorf("Unable to instantiate client %s", clientType)
+	return fmt.Errorf("unable to instantiate client %s", clientType)
 }
 
 func (cs *Clients) String() string {
 	str := make([]string, 0)
 	for _, c := range *cs {
-		str = append(str, (*c).String())
+		str = append(str, c.String())
 	}
 	return strings.Join(str, ",")
 }
