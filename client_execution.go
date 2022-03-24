@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"net/http"
 	"sync"
 	"time"
 
@@ -13,6 +12,10 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"gopkg.in/inconshreveable/log15.v2"
 )
+
+type TotalDifficulty struct {
+	TotalDifficulty *hexutil.Big `json:"totalDifficulty"`
+}
 
 type ExecutionClient struct {
 	Type   ClientType
@@ -35,8 +38,19 @@ type ExecutionClient struct {
 	lastCancel context.CancelFunc
 }
 
-type TotalDifficulty struct {
-	TotalDifficulty *hexutil.Big `json:"totalDifficulty"`
+func NewExecutionClient(clientType ClientType, id int, rpcUrl string) (*ExecutionClient, error) {
+	rpcClient, err := rpc.DialHTTP(rpcUrl)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ExecutionClient{
+		Type:   clientType,
+		ID:     id,
+		RPCUrl: rpcUrl,
+		Eth:    ethclient.NewClient(rpcClient),
+		RPC:    rpcClient,
+	}, nil
 }
 
 func (el *ExecutionClient) ClientLayer() ClientLayer {
@@ -67,8 +81,8 @@ func (el *ExecutionClient) UpdateGetTTDBlockSlot() (*uint64, error) {
 			if err != nil {
 				return nil, err
 			}
-			for currentNumber := latestHeader.NumberU64(); currentNumber >= 0; currentNumber-- {
-				currentHeader, err := el.Eth.BlockByNumber(el.Ctx(), big.NewInt(int64(currentNumber)))
+			for currentNumber := int64(latestHeader.NumberU64()); currentNumber >= 0; currentNumber-- {
+				currentHeader, err := el.Eth.BlockByNumber(el.Ctx(), big.NewInt(currentNumber))
 				if err != nil {
 					return nil, err
 				}
@@ -84,12 +98,11 @@ func (el *ExecutionClient) UpdateGetTTDBlockSlot() (*uint64, error) {
 					break
 				}
 				if currentNumber == 0 {
-					return nil, fmt.Errorf("Unable to get TTD Block")
+					return nil, fmt.Errorf("unable to get TTD Block")
 				}
 			}
 		}
 	}
-
 	return el.TTDBlockNumber, nil
 }
 
@@ -102,54 +115,35 @@ func (el *ExecutionClient) GetLatestBlockSlotNumber() (uint64, error) {
 func (el *ExecutionClient) GetDataPoint(dataName MetricName, blockNumber uint64) (interface{}, error) {
 	el.l.Lock()
 	defer el.l.Unlock()
+	header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
+	if err != nil {
+		return nil, err
+	}
 	switch dataName {
 	case BlockCount:
-		_, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
-		if err != nil {
-			return nil, err
-		}
+		// no error occured, we have a block
 		return uint64(1), nil
+
 	case BlockBaseFee:
-		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
-		if err != nil {
-			return nil, err
-		}
 		return header.BaseFee, nil
+
 	case BlockGasUsed:
-		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
-		if err != nil {
-			return nil, err
-		}
 		return header.GasUsed, nil
+
 	case BlockDifficulty:
-		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
-		if err != nil {
-			return nil, err
-		}
 		return header.Difficulty, nil
+
 	case BlockMixHash:
-		el.l.Lock()
-		defer el.l.Unlock()
-		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
-		if err != nil {
-			return nil, err
-		}
 		return header.MixDigest.Big(), nil
+
 	case BlockUnclesHash:
-		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
-		if err != nil {
-			return nil, err
-		}
 		return header.UncleHash.Big(), nil
+
 	case BlockNonce:
-		header, err := el.Eth.HeaderByNumber(el.Ctx(), big.NewInt(int64(blockNumber)))
-		if err != nil {
-			return nil, err
-		}
 		return header.Nonce.Uint64(), nil
 	}
 
-	return nil, fmt.Errorf("Invalid data name: %s", dataName)
+	return nil, fmt.Errorf("invalid data name: %s", dataName)
 }
 
 func (el *ExecutionClient) Ctx() context.Context {
@@ -175,22 +169,4 @@ func (el *ExecutionClient) ClientID() int {
 func (el *ExecutionClient) Close() error {
 	el.Eth.Close()
 	return nil
-}
-
-func NewExecutionClient(clientType ClientType, id int, rpcUrl string) (*ExecutionClient, error) {
-	client := &http.Client{}
-	rpcClient, err := rpc.DialHTTPWithClient(rpcUrl, client)
-	if err != nil {
-		return nil, err
-	}
-	eth := ethclient.NewClient(rpcClient)
-
-	el := ExecutionClient{
-		Type:   clientType,
-		ID:     id,
-		RPCUrl: rpcUrl,
-		Eth:    eth,
-		RPC:    rpcClient,
-	}
-	return &el, nil
 }

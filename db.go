@@ -12,7 +12,7 @@ func (dp DataPoints) ToInt() (map[uint64]*big.Int, error) {
 	for k, v := range dp {
 		bigIntVal, ok := v.(*big.Int)
 		if !ok {
-			return nil, fmt.Errorf("Invalid data for bigInt: %v", v)
+			return nil, fmt.Errorf("invalid data for bigInt: %v", v)
 		}
 		dataPoints[k] = bigIntVal
 	}
@@ -24,7 +24,7 @@ func (dp DataPoints) ToUint64() (map[uint64]uint64, error) {
 	for k, v := range dp {
 		uint64Val, ok := v.(uint64)
 		if !ok {
-			return nil, fmt.Errorf("Invalid data for uint64: %v", v)
+			return nil, fmt.Errorf("invalid data for uint64: %v", v)
 		}
 		dataPoints[k] = uint64Val
 	}
@@ -102,7 +102,7 @@ func (dp DataPoints) AggregateUint64(af AggregateFunction, aggregateFuncValue In
 			}
 		}
 	default:
-		return aggregatedValue, fmt.Errorf("Invalid aggregate function for uint64: %s", af)
+		return aggregatedValue, fmt.Errorf("invalid aggregate function for uint64: %s", af)
 	}
 	return aggregatedValue, nil
 }
@@ -172,7 +172,7 @@ func (dp DataPoints) AggregateBigInt(af AggregateFunction, aggregateFuncValue In
 			}
 		}
 	default:
-		return nil, fmt.Errorf("Invalid aggregate function for bigInt: %s", af)
+		return nil, fmt.Errorf("invalid aggregate function for bigInt: %s", af)
 	}
 	return aggregatedValue, nil
 }

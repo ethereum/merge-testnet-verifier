@@ -20,7 +20,7 @@ type TTD struct {
 func (t *TTD) Set(val string) error {
 	dec := big.NewInt(0)
 	if _, suc := dec.SetString(val, 0); !suc {
-		return fmt.Errorf("Unable to parse %s", val)
+		return fmt.Errorf("unable to parse %s", val)
 	}
 	*t = TTD{dec}
 	return nil
@@ -38,7 +38,10 @@ func (p *Prober) StartProbes() {
 	for _, vp := range p.Probes {
 		vp := vp
 		p.WaitGroup.Add(1)
-		go vp.Loop(p.StopChan, p.WaitGroup)
+		go func() {
+			defer p.WaitGroup.Done()
+			vp.Loop(p.StopChan)
+		}()
 	}
 }
 
@@ -49,7 +52,7 @@ func (p *Prober) StopProbes() {
 func (p *Prober) WrapUp() {
 	for _, vp := range p.Probes {
 		if vOut, err := vp.Verify(); err != nil {
-			log15.Crit("Unable to perform verification", "client", (*vp.Client).ClientType(), "clientID", (*vp.Client).ClientID(), "verification", vp.Verification.VerificationName)
+			log15.Crit("Unable to perform verification", "client", vp.Client.ClientType(), "clientID", vp.Client.ClientID(), "verification", vp.Verification.VerificationName)
 		} else {
 			var f func(string, ...interface{})
 			if vOut.Success {
@@ -57,7 +60,7 @@ func (p *Prober) WrapUp() {
 			} else {
 				f = log15.Crit
 			}
-			f(vp.Verification.VerificationName, "client", (*vp.Client).ClientType(), "clientID", (*vp.Client).ClientID(), "pass", vOut.Success, "extra", vOut.Message)
+			f(vp.Verification.VerificationName, "client", vp.Client.ClientType(), "clientID", vp.Client.ClientID(), "pass", vOut.Success, "extra", vOut.Message)
 		}
 	}
 }
@@ -83,8 +86,8 @@ func main() {
 
 	updateAllTTDTimestamps := func(timestamp uint64) {
 		for _, cl := range clients {
-			if (*cl).ClientLayer() == Beacon {
-				bc := (*cl).(*BeaconClient)
+			if cl.ClientLayer() == Beacon {
+				bc := cl.(*BeaconClient)
 				bc.UpdateTTDTimestamp(timestamp)
 			}
 		}
@@ -101,11 +104,11 @@ func main() {
 	}
 
 	for _, cl := range clients {
-		if (*cl).ClientLayer() == Beacon {
-			bc := (*cl).(*BeaconClient)
+		if cl.ClientLayer() == Beacon {
+			bc := cl.(*BeaconClient)
 			bc.TTD = ttd
-		} else if (*cl).ClientLayer() == Execution {
-			el := (*cl).(*ExecutionClient)
+		} else if cl.ClientLayer() == Execution {
+			el := cl.(*ExecutionClient)
 			el.TTD = ttd
 			el.UpdateTTDTimestamp = updateAllTTDTimestamps
 		}
@@ -125,14 +128,9 @@ func main() {
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	for {
-		select {
-		case <-sigs:
-			// Need to wait here for the clients to finish up before continuing
-			prober.StopProbes()
-			prober.WrapUp()
-			return
-		}
-	}
 
+	<-sigs
+	// Need to wait here for the clients to finish up before continuing
+	prober.StopProbes()
+	prober.WrapUp()
 }
