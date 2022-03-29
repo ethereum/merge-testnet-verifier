@@ -186,3 +186,11 @@ func (v *Validators) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+
+// Client Specific Structs
+
+type ValidatorInclusionGlobal struct {
+	PreviousEpochActiveGwei          uint64 `json:"previous_epoch_active_gwei"`
+	PreviousEpochTargetAttestingGwei uint64 `json:"previous_epoch_target_attesting_gwei"`
+	PreviousEpochHeadAttestingGwei   uint64 `json:"previous_epoch_head_attesting_gwei"`
+}

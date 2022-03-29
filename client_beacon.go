@@ -340,23 +340,38 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 				return nil, fmt.Errorf("No information available yet")
 			}
 
-			type ValidatorInclusionGlobal struct {
-				PreviousEpochActiveGwei          uint64 `json:"previous_epoch_active_gwei"`
-				PreviousEpochTargetAttestingGwei uint64 `json:"previous_epoch_target_attesting_gwei"`
-				PreviousEpochHeadAttestingGwei   uint64 `json:"previous_epoch_head_attesting_gwei"`
-			}
 			var resp ValidatorInclusionGlobal
 
 			err = cl.sendRequest(GET_REQUEST, fmt.Sprintf(LIGHTHOUSE_GLOBAL_VALIDATOR_INCLUSION, cl.EpochForSlot(slotNumber)), &resp)
 			if err != nil {
 				return nil, err
 			}
-			// log15.Debug("Lighthouse Validator Inclusion", "client", cl.ClientType(), "clientID", cl.ClientID(), "response", resp)
 			return (resp.PreviousEpochHeadAttestingGwei * 100) / resp.PreviousEpochActiveGwei, nil
 		default:
 			return nil, fmt.Errorf("Invalid client for metric")
 		}
+	case EpochTargetAttestationPerformance:
+		switch cl.ClientType() {
+		case Lighthouse:
+			currentEpoch, err := cl.GetOngoingEpochNumber()
+			if err != nil {
+				return nil, err
+			}
+			if cl.EpochForSlot(slotNumber) >= currentEpoch {
+				// We can only get accurate information for previous epoch
+				return nil, fmt.Errorf("No information available yet")
+			}
 
+			var resp ValidatorInclusionGlobal
+
+			err = cl.sendRequest(GET_REQUEST, fmt.Sprintf(LIGHTHOUSE_GLOBAL_VALIDATOR_INCLUSION, cl.EpochForSlot(slotNumber)), &resp)
+			if err != nil {
+				return nil, err
+			}
+			return (resp.PreviousEpochTargetAttestingGwei * 100) / resp.PreviousEpochActiveGwei, nil
+		default:
+			return nil, fmt.Errorf("Invalid client for metric")
+		}
 	case SyncParticipationCount:
 		return cl.GetSyncParticipationCountAtSlot(slotNumber)
 
@@ -406,7 +421,6 @@ func (cl *BeaconClient) sendRequest(requestType string, requestEndPoint string, 
 	defer res.Body.Close()
 
 	if res.StatusCode < http.StatusOK || res.StatusCode >= http.StatusBadRequest {
-		log15.Debug("Error during request", "request", req)
 		var errRes errorResponse
 		if err = json.NewDecoder(res.Body).Decode(&errRes); err == nil {
 			return errors.New(errRes.Message)

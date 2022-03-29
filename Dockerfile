@@ -8,4 +8,4 @@ COPY . .
 
 RUN go build .
 
-ENTRYPOINT ["./merge_testnet_prober"]
+ENTRYPOINT ["./merge_testnet_verifier"]

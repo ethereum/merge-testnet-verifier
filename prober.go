@@ -26,14 +26,14 @@ func (t *TTD) Set(val string) error {
 	return nil
 }
 
-type Prober struct {
+type Verifier struct {
 	Clients   Clients
 	Probes    VerificationProbes
 	WaitGroup sync.WaitGroup
 	StopChan  chan struct{}
 }
 
-func (p *Prober) StartProbes() {
+func (p *Verifier) StartProbes() {
 	p.StopChan = make(chan struct{})
 	for _, vp := range p.Probes {
 		vp := vp
@@ -45,11 +45,11 @@ func (p *Prober) StartProbes() {
 	}
 }
 
-func (p *Prober) StopProbes() {
+func (p *Verifier) StopProbes() {
 	close(p.StopChan)
 }
 
-func (p *Prober) WrapUp() {
+func (p *Verifier) WrapUp() {
 	for _, vp := range p.Probes {
 		if vOut, err := vp.Verify(); err != nil {
 			log15.Crit("Unable to perform verification", "client", vp.Client.ClientType(), "clientID", vp.Client.ClientID(), "verification", vp.Verification.VerificationName)
@@ -79,7 +79,7 @@ func main() {
 		"Value of the Terminal Total Difficulty for the subscribed clients")
 	flag.Parse()
 
-	prober := Prober{
+	verifier := Verifier{
 		Clients: clients,
 		Probes:  make(VerificationProbes, 0),
 	}
@@ -116,21 +116,21 @@ func main() {
 		for _, cp := range clientProbes {
 			cp.AllProbesClient = &clientProbes
 		}
-		prober.Probes = append(prober.Probes, clientProbes...)
+		verifier.Probes = append(verifier.Probes, clientProbes...)
 	}
 
-	if prober.Probes.ExecutionVerifications() == 0 {
+	if verifier.Probes.ExecutionVerifications() == 0 {
 		log15.Crit("At least 1 execution layer verification is required, exiting")
 		os.Exit(1)
 	}
 
-	prober.StartProbes()
+	verifier.StartProbes()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	<-sigs
 	// Need to wait here for the clients to finish up before continuing
-	prober.StopProbes()
-	prober.WrapUp()
+	verifier.StopProbes()
+	verifier.WrapUp()
 }

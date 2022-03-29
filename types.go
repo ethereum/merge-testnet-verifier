@@ -154,12 +154,17 @@ const (
 	SlotAttestations
 	SlotAttestationsPercentage
 	EpochAttestationPerformance
+	EpochTargetAttestationPerformance
 	SyncParticipationCount
 	SyncParticipationPercentage
 )
 
 var MetricClientTypeRequirements = map[MetricName][]ClientType{
 	EpochAttestationPerformance: {
+		// This metric requires validator_inclusion API from lighthouse
+		Lighthouse,
+	},
+	EpochTargetAttestationPerformance: {
 		// This metric requires validator_inclusion API from lighthouse
 		Lighthouse,
 	},
@@ -175,14 +180,15 @@ var MetricNames = map[string]MetricName{
 	"BlockUnclesHash": BlockUnclesHash,
 	"BlockNonce":      BlockNonce,
 	// Beacon Types
-	"SlotBlock":                   SlotBlock,
-	"FinalizedEpoch":              FinalizedEpoch,
-	"JustifiedEpoch":              JustifiedEpoch,
-	"SlotAttestations":            SlotAttestations,
-	"SlotAttestationsPercentage":  SlotAttestationsPercentage,
-	"EpochAttestationPerformance": EpochAttestationPerformance,
-	"SyncParticipationCount":      SyncParticipationCount,
-	"SyncParticipationPercentage": SyncParticipationPercentage,
+	"SlotBlock":                         SlotBlock,
+	"FinalizedEpoch":                    FinalizedEpoch,
+	"JustifiedEpoch":                    JustifiedEpoch,
+	"SlotAttestations":                  SlotAttestations,
+	"SlotAttestationsPercentage":        SlotAttestationsPercentage,
+	"EpochAttestationPerformance":       EpochAttestationPerformance,
+	"EpochTargetAttestationPerformance": EpochTargetAttestationPerformance,
+	"SyncParticipationCount":            SyncParticipationCount,
+	"SyncParticipationPercentage":       SyncParticipationPercentage,
 }
 
 func (dn *MetricName) UnmarshalText(input []byte) error {
@@ -222,14 +228,15 @@ var DataTypesPerLayer = map[ClientLayer]map[MetricName]DataType{
 		BlockNonce:      Uint64,
 	},
 	Beacon: {
-		SlotBlock:                   Uint64,
-		FinalizedEpoch:              Uint64,
-		JustifiedEpoch:              Uint64,
-		SlotAttestations:            Uint64,
-		SlotAttestationsPercentage:  Uint64,
-		EpochAttestationPerformance: Uint64,
-		SyncParticipationCount:      Uint64,
-		SyncParticipationPercentage: Uint64,
+		SlotBlock:                         Uint64,
+		FinalizedEpoch:                    Uint64,
+		JustifiedEpoch:                    Uint64,
+		SlotAttestations:                  Uint64,
+		SlotAttestationsPercentage:        Uint64,
+		EpochAttestationPerformance:       Uint64,
+		EpochTargetAttestationPerformance: Uint64,
+		SyncParticipationCount:            Uint64,
+		SyncParticipationPercentage:       Uint64,
 	},
 }
 

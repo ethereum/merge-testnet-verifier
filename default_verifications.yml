@@ -90,6 +90,15 @@
   PassCriteria:      MinimumValue
   PassValue:         95
 
+- VerificationName:  Post-Merge Epoch Target Attestation Performance
+  ClientLayer:       Beacon
+  PostMerge:         true
+  CheckDelaySeconds: 12
+  MetricName:        EpochTargetAttestationPerformance
+  AggregateFunction: Average
+  PassCriteria:      MinimumValue
+  PassValue:         95
+
 - VerificationName:  Post-Merge Sync Participation Percentage
   ClientLayer:       Beacon
   PostMerge:         true

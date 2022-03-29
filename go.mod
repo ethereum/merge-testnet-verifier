@@ -1,4 +1,4 @@
-module merge_testnet_prober
+module merge_testnet_verifier
 
 go 1.17
 
