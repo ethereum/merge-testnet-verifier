@@ -38,6 +38,26 @@ type Client interface {
 
 type Clients []Client
 
+func (cs *Clients) BeaconClients() []*BeaconClient {
+	beaconClients := make([]*BeaconClient, 0)
+	for _, c := range *cs {
+		if bc, ok := c.(*BeaconClient); ok {
+			beaconClients = append(beaconClients, bc)
+		}
+	}
+	return beaconClients
+}
+
+func (cs *Clients) ExecutionClients() []*ExecutionClient {
+	executionClients := make([]*ExecutionClient, 0)
+	for _, c := range *cs {
+		if ec, ok := c.(*ExecutionClient); ok {
+			executionClients = append(executionClients, ec)
+		}
+	}
+	return executionClients
+}
+
 func (cs *Clients) ContainsID(clientType ClientType, id int) bool {
 	for _, c := range *cs {
 		if c.ClientType() == clientType && c.ClientID() == id {
