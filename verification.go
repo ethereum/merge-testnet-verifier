@@ -54,6 +54,17 @@ func (vps *VerificationProbes) AnySyncing() bool {
 	return false
 }
 
+func (vps *VerificationProbes) AllPassing() bool {
+	if vps == nil {
+		return false
+	}
+	for _, v := range *vps {
+		if !v.CurrentOutcome.Success {
+			return false
+		}
+	}
+	return true
+}
 
 func (v *VerificationProbe) Loop(stop <-chan interface{}) {
 	var checkDelay time.Duration
@@ -100,10 +111,16 @@ func (v *VerificationProbe) Loop(stop <-chan interface{}) {
 			for ; currentBlockSlot <= latestBlockSlot; currentBlockSlot++ {
 				newDataPoint, err := v.Client.GetDataPoint(v.Verification.MetricName, currentBlockSlot)
 				if err != nil {
-					log15.Debug("Error during datapoint fetch", "client", v.Client.ClientType(), "clientID", v.Client.ClientID(), "datatype", v.Verification.MetricName, "error", err)
-					break
+					if latestBlockSlot-currentBlockSlot <= 64 {
+						log15.Debug("Error during datapoint fetch, will retry", "client", v.Client.ClientType(), "clientID", v.Client.ClientID(), "datatype", v.Verification.MetricName, "block/slot", currentBlockSlot, "error", err)
+						break
+					}
+					// This data will be considered empty for given block/slot
+					log15.Debug("Unable to fetch datapoint, considered empty", "client", v.Client.ClientType(), "clientID", v.Client.ClientID(), "datatype", v.Verification.MetricName, "block/slot", currentBlockSlot, "error", err)
+
+				} else {
+					v.DataPointsPerSlotBlock[currentBlockSlot] = newDataPoint
 				}
-				v.DataPointsPerSlotBlock[currentBlockSlot] = newDataPoint
 				v.PreviousDataPointSlotBlock = currentBlockSlot
 				if currentBlockSlot == latestBlockSlot {
 					finishedSyncing = true
@@ -116,6 +133,9 @@ func (v *VerificationProbe) Loop(stop <-chan interface{}) {
 					log15.Info("Finished syncing all data", "client", v.Client.ClientType(), "clientID", v.Client.ClientID())
 				}
 			}
+		}
+		if !v.IsSyncing {
+			v.CurrentOutcome, _ = v.Verify()
 		}
 	}
 

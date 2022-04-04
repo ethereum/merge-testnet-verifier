@@ -7,16 +7,21 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"gopkg.in/yaml.v2"
 )
 
+type VerificationOutcome struct {
+	Success bool
+	Message string
+}
+
 type Verification struct {
 	VerificationName       string            `yaml:"VerificationName"`
 	ClientLayer            ClientLayer       `yaml:"ClientLayer"`
 	PostMerge              bool              `yaml:"PostMerge"`
-	CheckDelaySeconds      int               `yaml:"CheckDelaySeconds"`
 	MetricName             MetricName        `yaml:"MetricName"`
 	AggregateFunction      AggregateFunction `yaml:"AggregateFunction"`
 	AggregateFunctionValue InputValue        `yaml:"AggregateFunctionValue"`
@@ -24,16 +29,20 @@ type Verification struct {
 	PassValue              InputValue        `yaml:"PassValue"`
 }
 
+type Verifications []Verification
+
 type VerificationProbe struct {
 	Verification               *Verification
 	AllProbesClient            *VerificationProbes
 	Client                     Client
 	IsSyncing                  bool
+	CurrentOutcome             VerificationOutcome
+	CurrentOutcomeLock         sync.Mutex
 	PreviousDataPointSlotBlock uint64
 	DataPointsPerSlotBlock     DataPoints
 }
 
-type Verifications []Verification
+type VerificationProbes []*VerificationProbe
 
 func (vs *Verifications) Set(filePath string) error {
 	yamlFile, err := os.Open(filePath)
@@ -66,11 +75,13 @@ const (
 	Nethermind
 	Besu
 	Erigon
+	GenericExecutionClient
 	Lodestar
 	Nimbus
 	Teku
 	Prysm
 	Lighthouse
+	GenericBeaconClient
 )
 
 var ClientTypeNames = map[string]ClientType{
@@ -79,11 +90,13 @@ var ClientTypeNames = map[string]ClientType{
 	"Nethermind": Nethermind,
 	"Besu":       Besu,
 	"Erigon":     Erigon,
+	"Execution":  GenericExecutionClient,
 	"Lodestar":   Lodestar,
 	"Nimbus":     Nimbus,
 	"Teku":       Teku,
 	"Prysm":      Prysm,
 	"Lighthouse": Lighthouse,
+	"Beacon":     GenericBeaconClient,
 }
 
 func (c ClientType) String() string {
@@ -125,30 +138,32 @@ func (l *ClientLayer) UnmarshalText(input []byte) error {
 }
 
 var ClientTypeToLayer = map[ClientType]ClientLayer{
-	Geth:       Execution,
-	Nethermind: Execution,
-	Besu:       Execution,
-	Erigon:     Execution,
-	Lodestar:   Beacon,
-	Nimbus:     Beacon,
-	Teku:       Beacon,
-	Prysm:      Beacon,
-	Lighthouse: Beacon,
+	Geth:                   Execution,
+	Nethermind:             Execution,
+	Besu:                   Execution,
+	Erigon:                 Execution,
+	GenericExecutionClient: Execution,
+	Lodestar:               Beacon,
+	Nimbus:                 Beacon,
+	Teku:                   Beacon,
+	Prysm:                  Beacon,
+	Lighthouse:             Beacon,
+	GenericBeaconClient:    Beacon,
 }
 
 type MetricName uint64
 
 const (
 	// Execution Types
-	BlockCount MetricName = iota
-	BlockBaseFee
-	BlockGasUsed
-	BlockDifficulty
-	BlockMixHash
-	BlockUnclesHash
-	BlockNonce
+	ExecutionBlockCount MetricName = iota
+	ExecutionBaseFee
+	ExecutionGasUsed
+	ExecutionDifficulty
+	ExecutionMixHash
+	ExecutionUnclesHash
+	ExecutionNonce
 	// Beacon Types
-	SlotBlock
+	BeaconBlockCount
 	FinalizedEpoch
 	JustifiedEpoch
 	SlotAttestations
@@ -172,15 +187,15 @@ var MetricClientTypeRequirements = map[MetricName][]ClientType{
 
 var MetricNames = map[string]MetricName{
 	// Execution Types
-	"BlockCount":      BlockCount,
-	"BlockBaseFee":    BlockBaseFee,
-	"BlockGasUsed":    BlockGasUsed,
-	"BlockDifficulty": BlockDifficulty,
-	"BlockMixHash":    BlockMixHash,
-	"BlockUnclesHash": BlockUnclesHash,
-	"BlockNonce":      BlockNonce,
+	"ExecutionBlockCount": ExecutionBlockCount,
+	"ExecutionBaseFee":    ExecutionBaseFee,
+	"ExecutionGasUsed":    ExecutionGasUsed,
+	"ExecutionDifficulty": ExecutionDifficulty,
+	"ExecutionMixHash":    ExecutionMixHash,
+	"ExecutionUnclesHash": ExecutionUnclesHash,
+	"ExecutionNonce":      ExecutionNonce,
 	// Beacon Types
-	"SlotBlock":                         SlotBlock,
+	"BeaconBlockCount":                  BeaconBlockCount,
 	"FinalizedEpoch":                    FinalizedEpoch,
 	"JustifiedEpoch":                    JustifiedEpoch,
 	"SlotAttestations":                  SlotAttestations,
@@ -219,16 +234,16 @@ const (
 
 var DataTypesPerLayer = map[ClientLayer]map[MetricName]DataType{
 	Execution: {
-		BlockCount:      Uint64,
-		BlockBaseFee:    BigInt,
-		BlockGasUsed:    Uint64,
-		BlockDifficulty: BigInt,
-		BlockMixHash:    BigInt,
-		BlockUnclesHash: BigInt,
-		BlockNonce:      Uint64,
+		ExecutionBlockCount: Uint64,
+		ExecutionBaseFee:    BigInt,
+		ExecutionGasUsed:    Uint64,
+		ExecutionDifficulty: BigInt,
+		ExecutionMixHash:    BigInt,
+		ExecutionUnclesHash: BigInt,
+		ExecutionNonce:      Uint64,
 	},
 	Beacon: {
-		SlotBlock:                         Uint64,
+		BeaconBlockCount:                  Uint64,
 		FinalizedEpoch:                    Uint64,
 		JustifiedEpoch:                    Uint64,
 		SlotAttestations:                  Uint64,
