@@ -120,26 +120,26 @@ func (el *ExecutionClient) GetDataPoint(dataName MetricName, blockNumber uint64)
 		return nil, err
 	}
 	switch dataName {
-	case BlockCount:
+	case ExecutionBlockCount:
 		// no error occured, we have a block
 		return uint64(1), nil
 
-	case BlockBaseFee:
+	case ExecutionBaseFee:
 		return header.BaseFee, nil
 
-	case BlockGasUsed:
+	case ExecutionGasUsed:
 		return header.GasUsed, nil
 
-	case BlockDifficulty:
+	case ExecutionDifficulty:
 		return header.Difficulty, nil
 
-	case BlockMixHash:
+	case ExecutionMixHash:
 		return header.MixDigest.Big(), nil
 
-	case BlockUnclesHash:
+	case ExecutionUnclesHash:
 		return header.UncleHash.Big(), nil
 
-	case BlockNonce:
+	case ExecutionNonce:
 		return header.Nonce.Uint64(), nil
 	}
 

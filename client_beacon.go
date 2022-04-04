@@ -255,7 +255,7 @@ func (cl *BeaconClient) GetDataPoint(dataName MetricName, slotNumber uint64) (in
 		time.Sleep(time.Second)
 	}
 	switch dataName {
-	case SlotBlock:
+	case BeaconBlockCount:
 		if _, err := cl.GetBeaconHeader(slotNumber); err == nil {
 			return uint64(1), nil
 		}

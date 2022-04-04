@@ -7,12 +7,10 @@ import (
 	"gopkg.in/inconshreveable/log15.v2"
 )
 
-type VerificationOutcome struct {
-	Success bool
-	Message string
-}
-
-type VerificationProbes []*VerificationProbe
+var (
+	DefaultBeaconCheckDelay    = time.Second * 12
+	DefaultExecutionCheckDelay = time.Second * 12
+)
 
 func NewVerificationProbes(client Client, verifications []Verification) VerificationProbes {
 	clientLayer := client.ClientLayer()
@@ -56,12 +54,19 @@ func (vps *VerificationProbes) AnySyncing() bool {
 	return false
 }
 
-func (v *VerificationProbe) Loop(stop <-chan struct{}) {
+
+func (v *VerificationProbe) Loop(stop <-chan interface{}) {
+	var checkDelay time.Duration
+	if v.Verification.ClientLayer == Beacon {
+		checkDelay = DefaultBeaconCheckDelay
+	} else if v.Verification.ClientLayer == Execution {
+		checkDelay = DefaultExecutionCheckDelay
+	}
 	for {
 		select {
 		case <-stop:
 			return
-		case <-time.After(time.Second * time.Duration(v.Verification.CheckDelaySeconds)):
+		case <-time.After(checkDelay):
 		}
 
 		if v.Verification.PostMerge {
