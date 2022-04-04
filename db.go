@@ -140,6 +140,17 @@ func (dp DataPoints) AggregateBigInt(af AggregateFunction, aggregateFuncValue In
 				aggregatedValue = aggregatedValue.Add(aggregatedValue, big.NewInt(1))
 			}
 		}
+	case Percentage:
+		total := int64(0)
+		aggregatedInt := int64(0)
+		for _, v := range dataPoints {
+			total++
+			if v.Cmp(big.NewInt(0)) != 0 {
+				aggregatedInt++
+			}
+		}
+		aggregatedValue = big.NewInt(100 * aggregatedInt)
+		aggregatedValue = aggregatedValue.Div(aggregatedValue, big.NewInt(total))
 	case Average:
 		count := int64(0)
 		for _, v := range dataPoints {
