@@ -78,7 +78,7 @@
   MetricName:        EpochAttestationPerformance
   AggregateFunction: Average
   PassCriteria:      MinimumValue
-  PassValue:         95
+  PassValue:         85
 
 - VerificationName:  Post-Merge Epoch Target Attestation Performance
   ClientLayer:       Beacon
@@ -86,7 +86,7 @@
   MetricName:        EpochTargetAttestationPerformance
   AggregateFunction: Average
   PassCriteria:      MinimumValue
-  PassValue:         95
+  PassValue:         85
 
 - VerificationName:  Post-Merge Sync Participation Percentage
   ClientLayer:       Beacon
@@ -94,4 +94,4 @@
   MetricName:        SyncParticipationPercentage
   AggregateFunction: Average
   PassCriteria:      MinimumValue
-  PassValue:         95
+  PassValue:         85
